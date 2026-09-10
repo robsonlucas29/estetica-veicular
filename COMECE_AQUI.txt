@@ -1,0 +1,13 @@
+ESTÉTICA VEICULAR v2.1 — COMEÇE AQUI
+
+1) npm install
+2) Crie/configure o arquivo .env
+3) No Supabase SQL Editor, execute supabase/schema.sql
+4) Em Authentication > Users, crie seu primeiro usuário
+5) Execute supabase/PRIMEIRO_GERENTE.sql trocando pelo seu e-mail
+6) npm run dev
+7) Faça login no sistema
+8) Publique a função create-user conforme o README
+9) A partir daí, crie os demais usuários pela tela Usuários
+
+IMPORTANTE: esta versão não possui entrada automática/demonstração. Sem login, o painel não abre.
