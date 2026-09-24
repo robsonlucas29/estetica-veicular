@@ -172,7 +172,29 @@ const row=rows[0];if(!row)return;if(f.payment_method_id && f.status==='concluido
   },setPayments,'Registrou pagamento');
 }for(const serviceRow of rows){
   await uploadImages(serviceRow.id,f.files);
-}if(f.status==='concluido')await notifyCompletion(rows,amount,f.notes);setF(empty)}async function notifyCompletion(rows,total,notes){if(!rows?.length)return;const first=rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);if(!c)return;const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',value:Number(r.charged_amount||0)}));const payload={client:{name:c.name,email:c.email,phone:c.phone},vehicle:{plate:v?.plate,brand:v?.brand,model:v?.model},services:doneServices,total:Number(total||0),notes:notes||''};try{const {data,error}=await supabase.functions.invoke('notify-service-completed',{body:payload});if(error)console.warn('Notificação automática não enviada:',error.message);else if(data?.error)console.warn('Notificação automática:',data.error)}catch(e){console.warn('Notificação automática não configurada:',e.message)}}function whatsapp(o){const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),s=services.find(x=>x.id===o.service_id);const phone=safePhone(c?.phone);if(!phone)return alert('Cliente sem telefone cadastrado.');const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu o serviço de ${s?.name||'Garagem GRAU CAR 096'}. Já pode ser retirado. Obrigado!`);window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank')}
+}if(f.status==='concluido')await notifyCompletion(rows,amount,f.notes);setF(empty)}async function notifyCompletion(rows,total,notes){if(!rows?.length)return;const first=rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);if(!c)return;const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',value:Number(r.charged_amount||0)}));const payload={
+  clientName:c.name,
+  clientEmail:c.email,
+  vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,
+  services:doneServices.map(s=>({
+    name:s.name,
+    price:s.value
+  })),
+  total:Number(total||0)
+};
+
+const {data,error}=await supabase.functions.invoke(
+  'service-completed-notification',
+  {body:payload}
+);
+
+if(error){
+  console.warn('Erro ao enviar e-mail:',error.message);
+}else if(data?.error){
+  console.warn('Erro ao enviar e-mail:',data.error);
+}else{
+  console.log('E-mail de conclusão enviado com sucesso.');
+}{console.warn('Notificação automática não configurada:',e.message)}}function whatsapp(o){const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),s=services.find(x=>x.id===o.service_id);const phone=safePhone(c?.phone);if(!phone)return alert('Cliente sem telefone cadastrado.');const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu o serviço de ${s?.name||'Garagem GRAU CAR 096'}. Já pode ser retirado. Obrigado!`);window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank')}
  return <section><Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}><div className="formGrid"><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services">
   <details className="services-dropdown">
   <summary>
