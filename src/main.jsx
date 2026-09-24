@@ -172,8 +172,14 @@ const row=rows[0];if(!row)return;if(f.payment_method_id && f.status==='concluido
   await uploadImages(serviceRow.id,f.files);
 }setF(empty)}function whatsapp(o){const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),s=services.find(x=>x.id===o.service_id);const phone=safePhone(c?.phone);if(!phone)return alert('Cliente sem telefone cadastrado.');const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu o serviço de ${s?.name||'Garagem GRAU CAR 096'}. Já pode ser retirado. Obrigado!`);window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank')}
  return <section><Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}><div className="formGrid"><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services">
-  <div className="multi-services-title">Tipos de serviço</div>
+  <details className="services-dropdown">
+  <summary>
+    {(f.service_ids || []).length
+      ? `${(f.service_ids || []).length} serviço(s) selecionado(s)`
+      : 'Tipos de serviço'}
+  </summary>
 
+  <div className="services-dropdown-list">
   {services.map((s) => {
     const selecionado = (f.service_ids || []).includes(s.id);
 
@@ -209,6 +215,8 @@ const row=rows[0];if(!row)return;if(f.payment_method_id && f.status==='concluido
       </label>
     );
   })}
+  </div>
+</details>
 </div>
 
 <select
