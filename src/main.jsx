@@ -130,237 +130,146 @@ function VehicleDetail({vehicle,client,orders,services,images,onClose}){return <
 
 function Services({services,canAdmin,insert,update,remove,setServices}){const empty={name:'',price:'',discount_percent:'0',description:''};const [f,setF]=useState(empty),[edit,setEdit]=useState(null);async function save(){if(!f.name||f.price==='')return alert('Informe nome e preço.');const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');setF(empty);setEdit(null)}return <section><Panel title="Tipos de serviços" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}><FormGrid f={f} setF={setF} fields={[['name','Nome do serviço'],['price','Preço (R$)','number'],['description','Descrição']]}/>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}<Table headers={['Serviço','Preço','Desconto','Preço final','Ações']}>{services.map(r=><tr key={r.id}><td>{r.name}</td><td>{money(r.price)}</td><td>{r.discount_percent||0}%</td><td><b>{money(finalPrice(r))}</b></td><td>{canAdmin&&<Actions onEdit={()=>{setEdit(r.id);setF({name:r.name||'',price:r.price||'',discount_percent:r.discount_percent||0,description:r.description||''})}} onDelete={()=>remove('service_types',r.id,setServices,'Excluiu tipo de serviço')}/>}</td></tr>)}</Table>{!canAdmin&&<p className="hint">Somente o gerente pode cadastrar, editar ou excluir tipos de serviço.</p>}</Panel></section>}
 
-function History({orders,vehicles,services,clients,employees,paymentMethods,payments,images,canWrite,profile,insert,update,uploadImages,setOrders,setPayments}){
-  const empty={
-    vehicle_id:'',
-    service_id:'',
-    service_ids:[],
-    employee_id:'',
-    notes:'',
-    status:'concluído',
-    charged_amount:'',
-    payment_method_id:'',
-    files:null
-  };
+function History({orders,vehicles,services,clients,employees,paymentMethods,images,canWrite,profile,insert,uploadImages,setOrders,setPayments}){
+  const empty={vehicle_id:'',service_id:'',service_ids:[],employee_id:'',notes:'',status:'concluido',discount_percent:'',charged_amount:'',payment_method_id:'',files:null};
+  const [f,setF]=useState(empty),[search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState(''),[formKey,setFormKey]=useState(0);
 
-  const [f,setF]=useState(empty);async function save(){if(!f.vehicle_id || !f.service_ids?.length) return alert('Selecione o veículo e pelo menos um serviço.');const atendimentoId = crypto.randomUUID();const selectedServices=services.filter(s=>f.service_ids.includes(s.id));const amount=Number(f.charged_amount || selectedServices.reduce((total,s)=>total+Number(finalPrice(s)||0),0));const rows=[];
+  function clearForm(){setF({...empty});setFormKey(k=>k+1)}
 
-for(const sv of selectedServices){
-  const serviceAmount=Number(finalPrice(sv)||0);
+  async function notifyCompletion(rows,total){
+    if(!rows?.length)return;
+    const first=rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);
+    if(!c?.email)return;
+    const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',price:Number(r.charged_amount||0)}));
+    try{
+      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
+      if(error)console.warn('Erro ao enviar e-mail:',error.message);
+      else if(data?.error)console.warn('Erro ao enviar e-mail:',data.error);
+      else console.log('E-mail de conclusão enviado com sucesso.');
+    }catch(e){console.warn('Notificação automática não configurada:',e.message)}
+  }
 
-  const row=await insert('service_orders',{
-    vehicle_id:f.vehicle_id,
-    service_id:sv.id,
-    atendimento_id:atendimentoId,
-    employee_id:f.employee_id||null,
-    performed_by:profile?.full_name,
-    status:f.status,
-    notes:f.notes,
-    charged_amount:serviceAmount,
-    completed_at:f.status==='concluido'?new Date().toISOString():null
-  },setOrders,'Registrou serviço');
+  async function save(){
+    if(!f.vehicle_id||!f.service_ids?.length)return alert('Selecione o veículo e pelo menos um serviço.');
+    const atendimentoId=crypto.randomUUID();
+    const selectedServices=services.filter(s=>f.service_ids.includes(s.id));
+    const subtotal=selectedServices.reduce((total,s)=>total+Number(finalPrice(s)||0),0);
+    const total=Number(f.charged_amount!==''?f.charged_amount:subtotal);
+    const ratio=subtotal>0?total/subtotal:1;
+    const rows=[];
+    for(const sv of selectedServices){
+      const serviceAmount=Number((Number(finalPrice(sv)||0)*ratio).toFixed(2));
+      const row=await insert('service_orders',{vehicle_id:f.vehicle_id,service_id:sv.id,atendimento_id:atendimentoId,employee_id:f.employee_id||null,performed_by:profile?.full_name,status:f.status,notes:f.notes,charged_amount:serviceAmount,completed_at:f.status==='concluido'?new Date().toISOString():null},setOrders,'Registrou serviço');
+      if(row)rows.push(row);
+    }
+    if(!rows.length)return;
+    if(f.payment_method_id&&f.status==='concluido')await insert('payments',{service_order_id:rows[0].id,payment_method_id:f.payment_method_id,amount:total,paid_at:new Date().toISOString()},setPayments,'Registrou pagamento');
+    for(const serviceRow of rows)await uploadImages(serviceRow.id,f.files);
+    if(f.status==='concluido')await notifyCompletion(rows,total);
+    clearForm();
+  }
 
-  if(row) rows.push(row);
+  function whatsapp(group){
+    const first=group.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),phone=safePhone(c?.phone);
+    if(!phone)return alert('Cliente sem telefone cadastrado.');
+    const names=group.rows.map(o=>services.find(s=>s.id===o.service_id)?.name).filter(Boolean).join(', ');
+    const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu ${group.rows.length>1?'os serviços':'o serviço'}: ${names}. Já pode ser retirado. Obrigado!`);
+    window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank');
+  }
+
+  const historyGroups=Object.values(orders.reduce((acc,o)=>{
+    const key=o.atendimento_id||o.id;
+    if(!acc[key])acc[key]={key,rows:[],created_at:o.completed_at||o.created_at};
+    acc[key].rows.push(o);
+    const d=o.completed_at||o.created_at;if(new Date(d)>new Date(acc[key].created_at))acc[key].created_at=d;
+    return acc;
+  },{})).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  const q=search.trim().toLowerCase();
+  const filteredHistory=historyGroups.filter(g=>{
+    const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);
+    const serviceNames=g.rows.map(o=>services.find(s=>s.id===o.service_id)?.name||'').join(' ');
+    const employeeNames=g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'').join(' ');
+    const haystack=`${c?.name||''} ${v?.plate||''} ${v?.brand||''} ${v?.model||''} ${serviceNames} ${employeeNames}`.toLowerCase();
+    return (!q||haystack.includes(q))&&(!dateFilter||String(g.created_at).slice(0,10)===dateFilter);
+  });
+
+  return <section>
+    <Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}>
+      <div className="formGrid">
+        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select>
+        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Tipos de serviço'}</summary><div className="services-dropdown-list">{services.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);const subtotal=ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(x=>x.id===id))||0),0);setF({...f,service_ids:ids,service_id:ids[0]||'',discount_percent:'',charged_amount:Number(subtotal.toFixed(2))})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
+        <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select>
+        <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));const subtotal=f.service_ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0);setF({...f,discount_percent:e.target.value,charged_amount:Number((subtotal*(1-desconto/100)).toFixed(2))})}}/>
+        <input type="number" min="0" step="0.01" placeholder="Valor cobrado" value={f.charged_amount} onChange={e=>setF({...f,charged_amount:e.target.value})}/>
+        <select value={f.payment_method_id} onChange={e=>setF({...f,payment_method_id:e.target.value})}><option value="">Forma de pagamento</option>{paymentMethods.filter(p=>p.active!==false).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
+        <input key={`files-${formKey}`} type="file" multiple accept="image/*" onChange={e=>setF({...f,files:e.target.files})}/>
+      </div>
+    </Panel>
+
+    <Panel title="Pesquisar histórico de serviços">
+      <div className="filterGrid"><SearchBox value={search} onChange={setSearch} placeholder="Cliente, placa, veículo, serviço ou funcionário"/><input type="date" value={dateFilter} onChange={e=>setDateFilter(e.target.value)}/><button className="secondary" onClick={()=>{setSearch('');setDateFilter('')}}><X size={16}/>Limpar</button></div>
+    </Panel>
+
+    <Panel title="Histórico de serviços realizados">
+      {filteredHistory.length===0?<p className="hint">Nenhum serviço encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Ações']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),statuses=[...new Set(g.rows.map(o=>o.status))];return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{statuses.map(st=><Status key={st} value={st}/>)}</td><td>{g.rows.some(o=>o.status==='concluido')&&<button type="button" className="secondary" title="Enviar WhatsApp" onClick={()=>whatsapp(g)}><MessageCircle size={16}/></button>}</td></tr>})}</Table>}
+    </Panel>
+  </section>
 }
 
-const row=rows[0];if(!row)return;if(f.payment_method_id && f.status==='concluido'){
-  await insert('payments',{
-    service_order_id:row.id,
-    payment_method_id:f.payment_method_id,
-    amount:amount,
-    paid_at:new Date().toISOString()
-  },setPayments,'Registrou pagamento');
-}for(const serviceRow of rows){
-  await uploadImages(serviceRow.id,f.files);
-}if(f.status==='concluido')await notifyCompletion(rows,amount,f.notes);setF(empty)}async function notifyCompletion(rows,total,notes){if(!rows?.length)return;const first=rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);if(!c)return;const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',value:Number(r.charged_amount||0)}));const payload={
-  clientName:c.name,
-  clientEmail:c.email,
-  vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,
-  services:doneServices.map(s=>({
-    name:s.name,
-    price:s.value
-  })),
-  total:Number(total||0)
-};
+function Appointments({appointments,clients,vehicles,services,canWrite,insert,setAppointments}){
+  const empty={client_id:'',vehicle_id:'',service_ids:[],scheduled_at:'',scheduled_date:'',scheduled_time:'',notes:'',status:'agendado'};
+  const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:''}),[formKey,setFormKey]=useState(0);
+  const available=vehicles.filter(v=>!f.client_id||v.client_id===f.client_id);
 
-const {data,error}=await supabase.functions.invoke(
-  'service-completed-notification',
-  {body:payload}
-);
+  async function notifyAppointmentCompletion(serviceIds,total){
+    const v=vehicles.find(x=>x.id===f.vehicle_id),c=clients.find(x=>x.id===f.client_id);
+    if(!c?.email)return;
+    const doneServices=serviceIds.map(id=>{const s=services.find(x=>x.id===id);return {name:s?.name||'Serviço',price:Number(finalPrice(s)||0)}});
+    try{
+      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
+      if(error)console.warn('Erro ao enviar e-mail do agendamento:',error.message);
+      else if(data?.error)console.warn('Erro ao enviar e-mail do agendamento:',data.error);
+      else console.log('E-mail do agendamento concluído enviado com sucesso.');
+    }catch(e){console.warn('Notificação automática do agendamento não configurada:',e.message)}
+  }
 
-if(error){
-  console.warn('Erro ao enviar e-mail:',error.message);
-}else if(data?.error){
-  console.warn('Erro ao enviar e-mail:',data.error);
-}else{
-  console.log('E-mail de conclusão enviado com sucesso.');
-}{console.warn('Notificação automática não configurada:',e.message)}}function whatsapp(o){const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),s=services.find(x=>x.id===o.service_id);const phone=safePhone(c?.phone);if(!phone)return alert('Cliente sem telefone cadastrado.');const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu o serviço de ${s?.name||'Garagem GRAU CAR 096'}. Já pode ser retirado. Obrigado!`);window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank')}
- return <section><Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}><div className="formGrid"><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services">
-  <details className="services-dropdown">
-  <summary>
-    {(f.service_ids || []).length
-      ? `${(f.service_ids || []).length} serviço(s) selecionado(s)`
-      : 'Tipos de serviço'}
-  </summary>
+  async function save(){
+    if(!f.client_id||!f.vehicle_id||!f.service_ids.length||!f.scheduled_date||!f.scheduled_time)return alert('Preencha cliente, veículo, pelo menos um serviço, data e hora.');
+    if(!/^\d{2}\/\d{2}\/\d{4}$/.test(f.scheduled_date)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(f.scheduled_time))return alert('Use data DD/MM/AAAA e hora HH:MM.');
+    const [dia,mes,ano]=f.scheduled_date.split('/');
+    const localDate=new Date(Number(ano),Number(mes)-1,Number(dia),Number(f.scheduled_time.slice(0,2)),Number(f.scheduled_time.slice(3,5)));
+    if(Number.isNaN(localDate.getTime())||localDate.getDate()!==Number(dia)||localDate.getMonth()!==Number(mes)-1||localDate.getFullYear()!==Number(ano))return alert('Data ou horário inválido.');
+    const when=localDate.toISOString();
+    let shouldNotify=f.status==='concluido';
+    if(edit){
+      const ids=String(edit).split('|');
+      const oldRows=appointments.filter(a=>ids.includes(String(a.id)));
+      if(oldRows.some(a=>a.status==='concluido'))shouldNotify=false;
+      for(const id of ids)if(!await removeAppointmentNoConfirm(id))return;
+    }
+    for(const service_id of f.service_ids){const row=await insert('appointments',{client_id:f.client_id,vehicle_id:f.vehicle_id,service_id,scheduled_at:when,notes:f.notes,status:f.status},setAppointments,edit?'Editou agendamento':'Criou agendamento');if(!row)return}
+    if(shouldNotify){const total=f.service_ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0);await notifyAppointmentCompletion(f.service_ids,total)}
+    setF({...empty});setEdit(null);setFormKey(k=>k+1);
+  }
 
-  <div className="services-dropdown-list">
-  {services.map((s) => {
-    const selecionado = (f.service_ids || []).includes(s.id);
+  async function removeAppointmentNoConfirm(id){const {error}=await supabase.from('appointments').delete().eq('id',id);if(error){alert(error.message);return false}setAppointments(x=>x.filter(r=>r.id!==id));return true}
+  const groups=Object.values(appointments.reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));
+  const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');return (!filters.date||String(a.scheduled_at).slice(0,10)===filters.date)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});
+  async function deleteGroup(a){if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;for(const id of a.ids)await removeAppointmentNoConfirm(id)}
+  function editGroup(a){const d=new Date(a.scheduled_at);setEdit(a.ids.join('|'));setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:[...a.service_ids],scheduled_at:a.scheduled_at,scheduled_date:d.toLocaleDateString('pt-BR'),scheduled_time:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false}),notes:a.notes||'',status:a.status});setFormKey(k=>k+1)}
 
-    return (
-      <label key={s.id} className="service-check">
-        <input
-          type="checkbox"
-          checked={selecionado}
-          onChange={(e) => {
-            const atuais = f.service_ids || [];
-
-            const ids = e.target.checked
-              ? [...atuais, s.id]
-              : atuais.filter((id) => id !== s.id);
-
-            const total = ids.reduce((soma, id) => {
-              const servico = services.find((item) => item.id === id);
-              return soma + Number(servico?.price || 0);
-            }, 0);
-
-            setF({
-              ...f,
-              service_ids: ids,
-              service_id: ids[0] || '',
-              charged_amount: total
-            });
-          }}
-        />
-
-        <span>
-          {s.name} - {money(finalPrice(s))}
-        </span>
-      </label>
-    );
-  })}
-  </div>
-</details>
-</div>
-
-<select
-  value={f.employee_id}
-  onChange={(e) => setF({ ...f, employee_id: e.target.value })}
->
-  <option value="">Funcionário responsável</option>
-  {employees
-    .filter((e) => e.active !== false)
-    .map((e) => (
-      <option key={e.id} value={e.id}>
-        {e.name}
-      </option>
-    ))}
-</select>
-
-<select
-  value={f.status}
-  onChange={(e) => setF({ ...f, status: e.target.value })}
->
-  <option value="em_andamento">Em andamento</option>
-  <option value="concluido">Concluído</option>
-</select>
-<input
-  type="number"
-  min="0"
-  max="100"
-  step="1"
-  placeholder="Desconto (%)"
-  value={f.discount_percent || ''}
-  onChange={(e) => {
-    const desconto = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-
-    const subtotal = (f.service_ids || []).reduce((soma, id) => {
-      const servico = services.find((s) => s.id === id);
-      return soma + Number(servico?.price || 0);
-    }, 0);
-
-    const total = subtotal * (1 - desconto / 100);
-
-    setF({
-      ...f,
-      discount_percent: e.target.value,
-      charged_amount: Number(total.toFixed(2))
-    });
-  }}
-/>
-<input
-  type="number"
-  placeholder="Valor cobrado"
-  value={f.charged_amount}
-  onChange={(e) => setF({ ...f, charged_amount: e.target.value })}
-/>
-
-<select
-  value={f.payment_method_id}
-  onChange={(e) => setF({ ...f, payment_method_id: e.target.value })}
->
-  <option value="">Forma de pagamento</option>
-  {paymentMethods
-    .filter((p) => p.active !== false)
-    .map((p) => (
-      <option key={p.id} value={p.id}>
-        {p.name}
-      </option>
-    ))}
-</select>
-</div>
-</Panel>
-</section>
+  return <section>
+    <Panel title="Agendamento de lavagens" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}>
+      <div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{available.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{services.map(s=><label key={s.id} className="service-check"><input type="checkbox" checked={f.service_ids.includes(s.id)} onChange={e=>setF({...f,service_ids:e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id)})}/><span>{s.name} - {money(finalPrice(s))}</span></label>)}</div></details></div><div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,8);if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);setF({...f,scheduled_date:v})}}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div><select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select><input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div>
+      {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF({...empty});setFormKey(k=>k+1)}}>Cancelar edição</button>}
+    </Panel>
+    <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="date" value={filters.date} onChange={e=>setFilters({...filters,date:e.target.value})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:''})}><X size={16}/>Limpar</button></div></Panel>
+    <Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Status','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id);return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td><Status value={a.status}/></td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>editGroup(a)} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel>
+  </section>
 }
-function Appointments({appointments,clients,vehicles,services,canWrite,insert,update,remove,setAppointments}){const empty={
-  client_id:'',
-  vehicle_id:'',
-  service_ids:[],
-  scheduled_at:'',
-  scheduled_date:'',
-  scheduled_time:'',
-  notes:'',
-  status:'agendado'
-};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:''});const available=vehicles.filter(v=>!f.client_id||v.client_id===f.client_id);async function save(){if(!f.client_id||!f.vehicle_id||!f.service_ids.length||!f.scheduled_date||!f.scheduled_time)return alert('Preencha cliente, veículo, pelo menos um serviço, data e hora.');const [dia,mes,ano]=f.scheduled_date.split('/');
-const when=new Date(`${ano}-${mes}-${dia}T${f.scheduled_time}:00`).toISOString();if(edit){const ids=String(edit).split('|');for(const id of ids)await removeAppointmentNoConfirm(id);for(const service_id of f.service_ids)await insert('appointments',{client_id:f.client_id,vehicle_id:f.vehicle_id,service_id,scheduled_at:when,notes:f.notes,status:f.status},setAppointments,'Editou agendamento')}else{for(const service_id of f.service_ids)await insert('appointments',{client_id:f.client_id,vehicle_id:f.vehicle_id,service_id,scheduled_at:when,notes:f.notes,status:f.status},setAppointments,'Criou agendamento')}setF(empty);setEdit(null)}async function removeAppointmentNoConfirm(id){const {error}=await supabase.from('appointments').delete().eq('id',id);if(error){alert(error.message);return false}setAppointments(x=>x.filter(r=>r.id!==id));return true}const groups=Object.values(appointments.reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');return (!filters.date||String(a.scheduled_at).slice(0,10)===filters.date)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});async function deleteGroup(a){if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;for(const id of a.ids)await removeAppointmentNoConfirm(id)}return <section><Panel title="Agendamento de lavagens" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}><div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{available.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services"><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{services.map(s=><label key={s.id} className="service-check"><input type="checkbox" checked={f.service_ids.includes(s.id)} onChange={e=>setF({...f,service_ids:e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id)})}/><span>{s.name} - {money(finalPrice(s))}</span></label>)}</div></details></div><div className="appointment-datetime">
-  <input
-    type="text"
-    placeholder="DD/MM/AAAA"
-    maxLength={10}
-    value={f.scheduled_date || ''}
-    onChange={e=>{
-      let v=e.target.value.replace(/\D/g,'').slice(0,8);
-      if(v.length>4) v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
-      else if(v.length>2) v=v.slice(0,2)+'/'+v.slice(2);
-      setF({...f,scheduled_date:v});
-    }}
-  />
-
-  <input
-  type="text"
-  inputMode="numeric"
-  placeholder="HH:MM"
-  maxLength={5}
-  value={f.scheduled_time || ''}
-  onChange={e => {
-    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
-
-    if (v.length > 2) {
-      v = v.slice(0, 2) + ':' + v.slice(2);
-    }
-
-    setF({...f, scheduled_time: v});
-  }}
-  onBlur={e => {
-    const v = e.target.value;
-
-    if (v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) {
-      alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');
-      setF({...f, scheduled_time: ''});
-    }
-  }}
-/>
-</div><select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select><input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}</Panel><Panel title="Pesquisar agenda"><div className="filterGrid"><input type="date" value={filters.date} onChange={e=>setFilters({...filters,date:e.target.value})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:''})}><X size={16}/>Limpar</button></div></Panel><Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Status','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id);return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td><Status value={a.status}/></td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>{setEdit(a.ids.join('|'));setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:a.service_ids,scheduled_at:new Date(a.scheduled_at).toISOString().slice(0,16),notes:a.notes||'',status:a.status})}} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel></section>}
 
 function Employees({employees,orders,vehicles,clients,services,canAdmin,insert,update,remove,setEmployees}){const empty={name:'',phone:'',position:'',commission_percent:'0',active:true};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);async function save(){if(!f.name)return alert('Informe o nome.');const p={...f,commission_percent:Number(f.commission_percent||0)};if(edit)await update('employees',edit,p,setEmployees,'Editou funcionário');else await insert('employees',p,setEmployees,'Cadastrou funcionário');setF(empty);setEdit(null)}const q=search.trim().toLowerCase();const filtered=employees.filter(e=>!q||[e.name,e.phone,e.position].some(x=>String(x||'').toLowerCase().includes(q)));const employee=employees.find(e=>e.id===detail);const history=orders.filter(o=>o.employee_id===detail).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));return <section><Panel title="Equipe e comissões" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar':'Cadastrar'}</button>}><div className="formGrid"><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input placeholder="Telefone" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/><input placeholder="Função" value={f.position} onChange={e=>setF({...f,position:e.target.value})}/><input type="number" placeholder="Comissão (%)" value={f.commission_percent} onChange={e=>setF({...f,commission_percent:e.target.value})}/></div><SearchBox value={search} onChange={setSearch} placeholder="Pesquisar funcionário por nome, função ou telefone"/><Table headers={['Nome','Função','Telefone','Comissão','Total gerado','Comissão estimada','Ações']}>{filtered.map(e=>{const eo=orders.filter(o=>o.employee_id===e.id&&o.status==='concluido'),total=eo.reduce((s,o)=>s+Number(o.charged_amount||0),0);return <tr key={e.id}><td>{e.name}</td><td>{e.position||'-'}</td><td>{e.phone||'-'}</td><td>{e.commission_percent||0}%</td><td>{money(total)}</td><td><b>{money(total*Number(e.commission_percent||0)/100)}</b></td><td><Actions onView={()=>setDetail(e.id)} onEdit={canAdmin?()=>{setEdit(e.id);setF({name:e.name||'',phone:e.phone||'',position:e.position||'',commission_percent:e.commission_percent||0,active:e.active!==false})}:null} onDelete={canAdmin?()=>remove('employees',e.id,setEmployees,'Excluiu funcionário'):null}/></td></tr>})}</Table></Panel>{employee&&<Modal title={`Funcionário: ${employee.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Função</b><span>{employee.position||'-'}</span></div><div><b>Telefone</b><span>{employee.phone||'-'}</span></div><div><b>Comissão</b><span>{employee.commission_percent||0}%</span></div><div><b>Serviços realizados</b><span>{history.length}</span></div></div><h4>Histórico de serviços realizados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado.</p>:<Table headers={['Data','Cliente','Veículo','Serviço','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),sv=services.find(x=>x.id===o.service_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'}</td><td>{sv?.name||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}</section>}
 
