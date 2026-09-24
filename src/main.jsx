@@ -97,7 +97,7 @@ function App(){
 
  const role=profile.role,canWrite=['gerente','administrativo'].includes(role),canAdmin=role==='gerente';
  const common={clients,vehicles,services,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
- return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>Gz</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
+ return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>A Casa do Grau Máximo</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
   {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
  </main></div>
 }
