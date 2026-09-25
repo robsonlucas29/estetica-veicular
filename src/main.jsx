@@ -20,10 +20,23 @@ const dt=v=>v?new Date(v).toLocaleString('pt-BR'):'-';
 const dateOnly=v=>v?new Date(v+'T12:00:00').toLocaleDateString('pt-BR'):'-';
 const finalPrice=s=>Number(s?.price||0)*(1-Number(s?.discount_percent||0)/100);
 const safePhone=p=>String(p||'').replace(/\D/g,'');
+const maskDateBR=value=>{
+ const n=String(value||'').replace(/\D/g,'').slice(0,8);
+ if(n.length<=2)return n;
+ if(n.length<=4)return `${n.slice(0,2)}/${n.slice(2)}`;
+ return `${n.slice(0,2)}/${n.slice(2,4)}/${n.slice(4)}`;
+};
+const brDateToIso=value=>{
+ if(!/^\d{2}\/\d{2}\/\d{4}$/.test(String(value||'')))return '';
+ const [d,m,y]=value.split('/').map(Number);
+ const test=new Date(y,m-1,d);
+ if(test.getFullYear()!==y||test.getMonth()!==m-1||test.getDate()!==d)return '';
+ return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+};
 
 function App(){
  const [session,setSession]=useState(undefined),[profile,setProfile]=useState(undefined),[tab,setTab]=useState('dashboard');
- const [clients,setClients]=useState([]),[vehicles,setVehicles]=useState([]),[services,setServices]=useState([]),[orders,setOrders]=useState([]),[images,setImages]=useState([]),[logs,setLogs]=useState([]);
+ const [clients,setClients]=useState([]),[vehicles,setVehicles]=useState([]),[services,setServices]=useState([]),[vehicleCategories,setVehicleCategories]=useState([]),[orders,setOrders]=useState([]),[images,setImages]=useState([]),[logs,setLogs]=useState([]);
  const [appointments,setAppointments]=useState([]),[employees,setEmployees]=useState([]),[paymentMethods,setPaymentMethods]=useState([]),[payments,setPayments]=useState([]),[cashClosings,setCashClosings]=useState([]),[profiles,setProfiles]=useState([]);
  const [login,setLogin]=useState({email:'',password:''}),[error,setError]=useState(''),[loadingData,setLoadingData]=useState(false),[profileError,setProfileError]=useState('');
  const configured=Boolean(supabase);
@@ -60,14 +73,14 @@ function App(){
    }
    setProfile(p);
    const q=await Promise.all([
-    supabase.from('clients').select('*').order('created_at',{ascending:false}),supabase.from('vehicles').select('*').order('created_at',{ascending:false}),supabase.from('service_types').select('*').order('name'),
+    supabase.from('clients').select('*').order('created_at',{ascending:false}),supabase.from('vehicles').select('*').order('created_at',{ascending:false}),supabase.from('service_types').select('*').order('name'),supabase.from('vehicle_categories').select('*').order('name'),
     supabase.from('service_orders').select('*').order('created_at',{ascending:false}),supabase.from('service_images').select('*').order('created_at',{ascending:false}),supabase.from('audit_logs_view').select('*').order('created_at',{ascending:false}).limit(250),
     supabase.from('appointments').select('*').order('scheduled_at'),supabase.from('employees').select('*').order('name'),supabase.from('payment_methods').select('*').order('name'),supabase.from('payments').select('*').order('paid_at',{ascending:false}),
     supabase.from('cash_closings').select('*').order('closed_at',{ascending:false}),supabase.from('profiles').select('*').order('full_name')
    ]);
    const firstError=q.find(x=>x.error)?.error;if(firstError)throw firstError;
-   setClients(q[0].data||[]);setVehicles(q[1].data||[]);setServices(q[2].data||[]);setOrders(q[3].data||[]);setImages(q[4].data||[]);setLogs(q[5].data||[]);
-   setAppointments(q[6].data||[]);setEmployees(q[7].data||[]);setPaymentMethods(q[8].data||[]);setPayments(q[9].data||[]);setCashClosings(q[10].data||[]);setProfiles(q[11].data||[]);
+   setClients(q[0].data||[]);setVehicles(q[1].data||[]);setServices(q[2].data||[]);setVehicleCategories(q[3].data||[]);setOrders(q[4].data||[]);setImages(q[5].data||[]);setLogs(q[6].data||[]);
+   setAppointments(q[7].data||[]);setEmployees(q[8].data||[]);setPaymentMethods(q[9].data||[]);setPayments(q[10].data||[]);setCashClosings(q[11].data||[]);setProfiles(q[12].data||[]);
   }catch(e){setProfileError(e.message||'Não foi possível carregar os dados do sistema.');}
   finally{setLoadingData(false);}
  }
@@ -95,10 +108,10 @@ function App(){
  if(profileError||profile===null)return <AccessError message={profileError} signOut={signOut} reload={loadAll}/>;
  if(!profile)return <Splash message="Carregando sistema..."/>;
 
- const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=['administrador','gerente'].includes(role);
- const common={clients,vehicles,services,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
+ const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=role==='administrador';
+ const common={clients,vehicles,services,vehicleCategories,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
  return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>A Casa do Grau Máximo</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
-  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setOrders={setOrders}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
+  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles} setVehicleCategories={setVehicleCategories}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setOrders={setOrders}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
  </main></div>
 }
 
@@ -125,14 +138,85 @@ function Clients({clients,vehicles,orders,services,employees,canWrite,insert,upd
 
 function SearchBox({value,onChange,placeholder}){return <div className="searchBox"><Search size={18}/><input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>{value&&<button type="button" onClick={()=>onChange('')}><X size={16}/></button>}</div>}
 
-function Vehicles({vehicles,clients,orders,services,images,canWrite,insert,update,remove,setVehicles}){const empty={client_id:'',plate:'',brand:'',model:'',color:'',year:''};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[detail,setDetail]=useState(null),[search,setSearch]=useState('');async function save(){if(!f.client_id||!f.plate)return alert('Informe cliente e placa.');if(edit)await update('vehicles',edit,f,setVehicles,'Editou veículo');else await insert('vehicles',f,setVehicles,'Cadastrou veículo');setF(empty);setEdit(null)}const q=search.trim().toLowerCase();const filtered=vehicles.filter(v=>{const c=clients.find(x=>x.id===v.client_id);return !q||[v.plate,v.brand,v.model,v.color,v.year,c?.name].some(x=>String(x||'').toLowerCase().includes(q))});const vehicle=vehicles.find(v=>v.id===detail);return <section><Panel title="Veículos" action={canWrite&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}><div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value})}><option value="">Cliente</option>{clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>{[['plate','Placa'],['brand','Marca'],['model','Modelo'],['color','Cor'],['year','Ano']].map(([k,p])=><input key={k} placeholder={p} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>)}</div>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}<SearchBox value={search} onChange={setSearch} placeholder="Pesquisar por placa, marca, modelo, cor, ano ou cliente"/><Table headers={['Placa','Marca/Modelo','Cor','Ano','Cliente','Ações']}>{filtered.map(r=><tr key={r.id}><td><b>{r.plate}</b></td><td>{r.brand} {r.model}</td><td>{r.color||'-'}</td><td>{r.year||'-'}</td><td>{clients.find(c=>c.id===r.client_id)?.name||'-'}</td><td><Actions onView={()=>setDetail(r.id)} onEdit={canWrite?()=>{setEdit(r.id);setF({client_id:r.client_id||'',plate:r.plate||'',brand:r.brand||'',model:r.model||'',color:r.color||'',year:r.year||''})}:null} onDelete={canWrite?()=>remove('vehicles',r.id,setVehicles,'Excluiu veículo'):null}/></td></tr>)}</Table></Panel>{vehicle&&<VehicleDetail vehicle={vehicle} client={clients.find(c=>c.id===vehicle.client_id)} orders={orders.filter(o=>o.vehicle_id===vehicle.id)} services={services} images={images} onClose={()=>setDetail(null)}/>}</section>}
-function VehicleDetail({vehicle,client,orders,services,images,onClose}){return <Modal title={`Veículo ${vehicle.plate}`} onClose={onClose}><div className="detailGrid"><div><b>Cliente</b><span>{client?.name||'-'}</span></div><div><b>Veículo</b><span>{vehicle.brand} {vehicle.model}</span></div><div><b>Cor</b><span>{vehicle.color||'-'}</span></div><div><b>Ano</b><span>{vehicle.year||'-'}</span></div></div><h4>Histórico de serviços</h4>{orders.length===0?<p className="hint">Nenhum serviço registrado.</p>:orders.map(o=>{const pics=images.filter(i=>i.service_order_id===o.id);return <div className="serviceDetail" key={o.id}><div><b>{services.find(s=>s.id===o.service_id)?.name||'Serviço'}</b><span>{dt(o.completed_at||o.created_at)} · {o.performed_by||'-'}</span><p>{o.notes||'Sem observações.'}</p></div>{pics.length>0&&<div className="gallery">{pics.map(i=><a key={i.id} href={i.image_url} target="_blank"><img src={i.image_url}/></a>)}</div>}</div>})}</Modal>}
+function Vehicles({vehicles,clients,orders,services,vehicleCategories,images,canWrite,canAdmin,insert,update,remove,setVehicles,setVehicleCategories}){
+ const empty={client_id:'',category_id:'',plate:'',brand:'',model:'',color:'',year:''};
+ const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[detail,setDetail]=useState(null),[search,setSearch]=useState(''),[categoryName,setCategoryName]=useState('');
 
-function Services({services,canAdmin,insert,update,remove,setServices}){const empty={name:'',price:'',discount_percent:'0',description:''};const [f,setF]=useState(empty),[edit,setEdit]=useState(null);async function save(){if(!f.name||f.price==='')return alert('Informe nome e preço.');const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');setF(empty);setEdit(null)}return <section><Panel title="Tipos de serviços" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}><FormGrid f={f} setF={setF} fields={[['name','Nome do serviço'],['price','Preço (R$)','number'],['description','Descrição']]}/>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}<Table headers={['Serviço','Preço','Desconto','Preço final','Ações']}>{services.map(r=><tr key={r.id}><td>{r.name}</td><td>{money(r.price)}</td><td>{r.discount_percent||0}%</td><td><b>{money(finalPrice(r))}</b></td><td>{canAdmin&&<Actions onEdit={()=>{setEdit(r.id);setF({name:r.name||'',price:r.price||'',discount_percent:r.discount_percent||0,description:r.description||''})}} onDelete={()=>remove('service_types',r.id,setServices,'Excluiu tipo de serviço')}/>}</td></tr>)}</Table>{!canAdmin&&<p className="hint">Somente o gerente pode cadastrar, editar ou excluir tipos de serviço.</p>}</Panel></section>}
+ async function save(){
+  if(!f.client_id||!f.plate||!f.category_id)return alert('Informe cliente, placa e categoria do veículo.');
+  if(edit)await update('vehicles',edit,f,setVehicles,'Editou veículo');
+  else await insert('vehicles',f,setVehicles,'Cadastrou veículo');
+  setF(empty);setEdit(null);
+ }
 
-function History({orders,vehicles,services,clients,employees,paymentMethods,images,canWrite,canDeleteHistory,profile,insert,update,remove,uploadImages,setOrders,setPayments}){
+ async function addCategory(){
+  const name=categoryName.trim().toUpperCase();
+  if(!name)return alert('Informe o nome da categoria.');
+  if(vehicleCategories.some(c=>String(c.name).toLowerCase()===name.toLowerCase()))return alert('Essa categoria já está cadastrada.');
+  const row=await insert('vehicle_categories',{name},setVehicleCategories,'Cadastrou categoria de veículo');
+  if(row)setCategoryName('');
+ }
+
+ const q=search.trim().toLowerCase();
+ const filtered=vehicles.filter(v=>{
+  const c=clients.find(x=>x.id===v.client_id),cat=vehicleCategories.find(x=>x.id===v.category_id);
+  return !q||[v.plate,v.brand,v.model,v.color,v.year,c?.name,cat?.name].some(x=>String(x||'').toLowerCase().includes(q));
+ });
+ const vehicle=vehicles.find(v=>v.id===detail);
+
+ return <section>
+  {canAdmin&&<Panel title="Categorias de veículos" action={<button className="primary" onClick={addCategory}><Plus size={17}/>Cadastrar categoria</button>}>
+   <div className="categoryCreate"><input placeholder="Ex.: SUV, PICKUP, RET, SEDAN, MOTO..." value={categoryName} onChange={e=>setCategoryName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCategory()}}}/></div>
+   {vehicleCategories.length===0?<p className="hint">Cadastre pelo menos uma categoria antes de cadastrar veículos e serviços.</p>:<div className="categoryChips">{vehicleCategories.map(cat=><span key={cat.id}>{cat.name}<button type="button" title="Excluir categoria" onClick={()=>remove('vehicle_categories',cat.id,setVehicleCategories,'Excluiu categoria de veículo')}><X size={14}/></button></span>)}</div>}
+   <p className="hint">Uma categoria vinculada a veículos ou serviços não poderá ser excluída até que esses vínculos sejam alterados.</p>
+  </Panel>}
+
+  <Panel title="Veículos" action={canWrite&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}>
+   <div className="formGrid">
+    <select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value})}><option value="">Cliente</option>{clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>
+    <select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>
+    {['plate','brand','model','color','year'].map(k=><input key={k} placeholder={{plate:'Placa',brand:'Marca',model:'Modelo',color:'Cor',year:'Ano'}[k]} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>)}
+   </div>
+   {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}
+   <SearchBox value={search} onChange={setSearch} placeholder="Pesquisar por placa, marca, modelo, categoria, ano ou cliente"/>
+   <Table headers={['Placa','Marca/Modelo','Categoria','Cor','Ano','Cliente','Ações']}>{filtered.map(r=><tr key={r.id}><td><b>{r.plate}</b></td><td>{r.brand} {r.model}</td><td><b>{vehicleCategories.find(c=>c.id===r.category_id)?.name||'Sem categoria'}</b></td><td>{r.color||'-'}</td><td>{r.year||'-'}</td><td>{clients.find(c=>c.id===r.client_id)?.name||'-'}</td><td><Actions onView={()=>setDetail(r.id)} onEdit={canWrite?()=>{setEdit(r.id);setF({client_id:r.client_id||'',category_id:r.category_id||'',plate:r.plate||'',brand:r.brand||'',model:r.model||'',color:r.color||'',year:r.year||''})}:null} onDelete={canWrite?()=>remove('vehicles',r.id,setVehicles,'Excluiu veículo'):null}/></td></tr>)}</Table>
+  </Panel>
+  {vehicle&&<VehicleDetail vehicle={vehicle} category={vehicleCategories.find(c=>c.id===vehicle.category_id)} client={clients.find(c=>c.id===vehicle.client_id)} orders={orders.filter(o=>o.vehicle_id===vehicle.id)} services={services} images={images} onClose={()=>setDetail(null)}/>}
+ </section>
+}
+function VehicleDetail({vehicle,category,client,orders,services,images,onClose}){return <Modal title={`Veículo ${vehicle.plate}`} onClose={onClose}><div className="detailGrid"><div><b>Cliente</b><span>{client?.name||'-'}</span></div><div><b>Veículo</b><span>{vehicle.brand} {vehicle.model}</span></div><div><b>Categoria</b><span>{category?.name||'Sem categoria'}</span></div><div><b>Cor/Ano</b><span>{vehicle.color||'-'} · {vehicle.year||'-'}</span></div></div><h4>Histórico de serviços</h4>{orders.length===0?<p className="hint">Nenhum serviço registrado.</p>:orders.map(o=>{const pics=images.filter(i=>i.service_order_id===o.id);return <div className="serviceDetail" key={o.id}><div><b>{services.find(s=>s.id===o.service_id)?.name||'Serviço'}</b><span>{dt(o.completed_at||o.created_at)} · {o.performed_by||'-'}</span><p>{o.notes||'Sem observações.'}</p></div>{pics.length>0&&<div className="gallery">{pics.map(i=><a key={i.id} href={i.image_url} target="_blank"><img src={i.image_url}/></a>)}</div>}</div>})}</Modal>}
+
+function Services({services,vehicleCategories,canAdmin,insert,update,remove,setServices}){
+ const empty={name:'',category_id:'',price:'',discount_percent:'0',description:''};
+ const [f,setF]=useState(empty),[edit,setEdit]=useState(null);
+
+ async function save(){
+  if(!f.name||!f.category_id||f.price==='')return alert('Informe nome, categoria do veículo e preço.');
+  const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};
+  if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');
+  else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');
+  setF(empty);setEdit(null);
+ }
+
+ return <section><Panel title="Tipos de serviços" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}>
+  <div className="formGrid">
+   <input placeholder="Nome do serviço" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
+   <select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+   <input type="number" min="0" step="0.01" placeholder="Preço (R$)" value={f.price} onChange={e=>setF({...f,price:e.target.value})}/>
+   <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>setF({...f,discount_percent:e.target.value})}/>
+   <input placeholder="Descrição" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/>
+  </div>
+  {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}
+  {vehicleCategories.length===0&&<p className="hint">Cadastre primeiro uma categoria na aba Veículos.</p>}
+  <Table headers={['Serviço','Categoria','Preço','Desconto','Preço final','Ações']}>{services.map(r=><tr key={r.id}><td>{r.name}</td><td><b>{vehicleCategories.find(c=>c.id===r.category_id)?.name||'Sem categoria'}</b></td><td>{money(r.price)}</td><td>{r.discount_percent||0}%</td><td><b>{money(finalPrice(r))}</b></td><td>{canAdmin&&<Actions onEdit={()=>{setEdit(r.id);setF({name:r.name||'',category_id:r.category_id||'',price:r.price||'',discount_percent:r.discount_percent||0,description:r.description||''})}} onDelete={()=>remove('service_types',r.id,setServices,'Excluiu tipo de serviço')}/>}</td></tr>)}</Table>
+ </Panel></section>
+}
+
+function History({orders,vehicles,services,vehicleCategories,clients,employees,paymentMethods,images,canWrite,canDeleteHistory,profile,insert,update,remove,uploadImages,setOrders,setPayments}){
   const empty={vehicle_id:'',service_id:'',service_ids:[],employee_id:'',notes:'',status:'concluido',discount_percent:'',charged_amount:'',payment_method_id:'',files:null};
   const [f,setF]=useState(empty),[search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState(''),[formKey,setFormKey]=useState(0);
+  const selectedVehicle=vehicles.find(v=>v.id===f.vehicle_id);
+  const availableServices=selectedVehicle?.category_id?services.filter(s=>s.category_id===selectedVehicle.category_id):[];
 
   function clearForm(){setF({...empty});setFormKey(k=>k+1)}
 
@@ -237,14 +321,16 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
     const serviceNames=g.rows.map(o=>services.find(s=>s.id===o.service_id)?.name||'').join(' ');
     const employeeNames=g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'').join(' ');
     const haystack=`${c?.name||''} ${v?.plate||''} ${v?.brand||''} ${v?.model||''} ${serviceNames} ${employeeNames}`.toLowerCase();
-    return (!q||haystack.includes(q))&&(!dateFilter||String(g.created_at).slice(0,10)===dateFilter);
+    const filterIso=brDateToIso(dateFilter);return (!q||haystack.includes(q))&&(!dateFilter||!filterIso||String(g.created_at).slice(0,10)===filterIso);
   });
 
   return <section>
     <Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}>
       <div className="formGrid">
-        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{vehicles.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select>
-        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Tipos de serviço'}</summary><div className="services-dropdown-list">{services.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);const subtotal=ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(x=>x.id===id))||0),0);setF({...f,service_ids:ids,service_id:ids[0]||'',discount_percent:'',charged_amount:Number(subtotal.toFixed(2))})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
+        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_id:'',service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Veículo</option>{vehicles.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select>
+        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Tipos de serviço'}</summary><div className="services-dropdown-list">{availableServices.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);const subtotal=ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(x=>x.id===id))||0),0);setF({...f,service_ids:ids,service_id:ids[0]||'',discount_percent:'',charged_amount:Number(subtotal.toFixed(2))})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
+        {f.vehicle_id&&!selectedVehicle?.category_id&&<div className="fieldHint">Este veículo ainda não possui categoria.</div>}
+        {f.vehicle_id&&selectedVehicle?.category_id&&availableServices.length===0&&<div className="fieldHint">Nenhum serviço cadastrado para {vehicleCategories.find(c=>c.id===selectedVehicle.category_id)?.name||'esta categoria'}.</div>}
         <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
         <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select>
         <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));const subtotal=f.service_ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0);setF({...f,discount_percent:e.target.value,charged_amount:Number((subtotal*(1-desconto/100)).toFixed(2))})}}/>
@@ -256,7 +342,7 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
     </Panel>
 
     <Panel title="Pesquisar histórico de serviços">
-      <div className="filterGrid"><SearchBox value={search} onChange={setSearch} placeholder="Cliente, placa, veículo, serviço ou funcionário"/><input type="date" value={dateFilter} onChange={e=>setDateFilter(e.target.value)}/><button className="secondary" onClick={()=>{setSearch('');setDateFilter('')}}><X size={16}/>Limpar</button></div>
+      <div className="filterGrid historyFilters"><SearchBox value={search} onChange={setSearch} placeholder="Cliente, placa, veículo, serviço ou funcionário"/><input className="historyDateFilter" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={dateFilter} onChange={e=>setDateFilter(maskDateBR(e.target.value))}/><button className="secondary historyClearBtn" onClick={()=>{setSearch('');setDateFilter('')}}><X size={16}/>Limpar</button></div>
     </Panel>
 
     <Panel title="Histórico de serviços realizados">
@@ -265,10 +351,12 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
   </section>
 }
 
-function Appointments({appointments,clients,vehicles,services,canWrite,profile,insert,setAppointments,setOrders}){
+function Appointments({appointments,clients,vehicles,services,vehicleCategories,canWrite,profile,insert,setAppointments,setOrders}){
   const empty={client_id:'',vehicle_id:'',service_ids:[],scheduled_at:'',scheduled_date:'',scheduled_time:'',notes:'',status:'agendado'};
   const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:''}),[formKey,setFormKey]=useState(0);
   const available=vehicles.filter(v=>!f.client_id||v.client_id===f.client_id);
+  const selectedVehicle=vehicles.find(v=>v.id===f.vehicle_id);
+  const availableServices=selectedVehicle?.category_id?services.filter(s=>s.category_id===selectedVehicle.category_id):[];
 
   async function notifyAppointmentCompletion(serviceIds,total){
     const v=vehicles.find(x=>x.id===f.vehicle_id),c=clients.find(x=>x.id===f.client_id);
@@ -318,16 +406,16 @@ function Appointments({appointments,clients,vehicles,services,canWrite,profile,i
 
   async function removeAppointmentNoConfirm(id){const {error}=await supabase.from('appointments').delete().eq('id',id);if(error){alert(error.message);return false}setAppointments(x=>x.filter(r=>r.id!==id));return true}
   const groups=Object.values(appointments.filter(a=>a.status!=='concluido').reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));
-  const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');return (!filters.date||String(a.scheduled_at).slice(0,10)===filters.date)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});
+  const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');const filterIso=brDateToIso(filters.date);return (!filters.date||!filterIso||String(a.scheduled_at).slice(0,10)===filterIso)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});
   async function deleteGroup(a){if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;for(const id of a.ids)await removeAppointmentNoConfirm(id)}
   function editGroup(a){const d=new Date(a.scheduled_at);setEdit(a.ids.join('|'));setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:[...a.service_ids],scheduled_at:a.scheduled_at,scheduled_date:d.toLocaleDateString('pt-BR'),scheduled_time:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false}),notes:a.notes||'',status:a.status});setFormKey(k=>k+1)}
 
   return <section>
     <Panel title="Agendamento de lavagens" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}>
-      <div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value})}><option value="">Veículo</option>{available.map(v=><option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select><div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{services.map(s=><label key={s.id} className="service-check"><input type="checkbox" checked={f.service_ids.includes(s.id)} onChange={e=>setF({...f,service_ids:e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id)})}/><span>{s.name} - {money(finalPrice(s))}</span></label>)}</div></details></div><div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,8);if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);setF({...f,scheduled_date:v})}}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div><select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select><input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div>
+      <div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:'',service_ids:[]})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_ids:[]})}><option value="">Veículo</option>{available.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select><div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{availableServices.map(s=><label key={s.id} className="service-check"><input type="checkbox" checked={f.service_ids.includes(s.id)} onChange={e=>setF({...f,service_ids:e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id)})}/><span>{s.name} - {money(finalPrice(s))}</span></label>)}</div></details></div><div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,8);if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);setF({...f,scheduled_date:v})}}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div><select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select><input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div>
       {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF({...empty});setFormKey(k=>k+1)}}>Cancelar edição</button>}
     </Panel>
-    <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="date" value={filters.date} onChange={e=>setFilters({...filters,date:e.target.value})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:''})}><X size={16}/>Limpar</button></div></Panel>
+    <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={filters.date} onChange={e=>setFilters({...filters,date:maskDateBR(e.target.value)})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:''})}><X size={16}/>Limpar</button></div></Panel>
     <Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Status','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id);return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td><Status value={a.status}/></td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>editGroup(a)} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel>
   </section>
 }
