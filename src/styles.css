@@ -144,68 +144,85 @@ aside nav {
     border-radius: 12px;
     background: #151b2b;
     box-sizing: border-box;
-}/* Dropdown expansível dos tipos de serviço */
-.services-dropdown {
-  width: 100%;
-  align-self: start;
-  position: relative;
+}/* Dropdown de múltiplos serviços - visual compacto e flutuante */
+.multi-services{
+  width:100%;
+  position:relative;
+  align-self:start;
+  min-height:48px;
+  z-index:20;
+}
+.services-dropdown{
+  width:100%;
+  position:relative;
+}
+.services-dropdown summary{
+  width:100%;
+  height:48px;
+  min-height:48px;
+  padding:0 12px;
+  border:1px solid #34343a;
+  border-radius:10px;
+  background:#0a0a0d;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  cursor:pointer;
+  list-style:none;
+  box-sizing:border-box;
+  font:inherit;
+  font-weight:400;
+}
+.services-dropdown summary::-webkit-details-marker{display:none}
+.services-dropdown summary::after{
+  content:"⌄";
+  margin-left:auto;
+  font-size:18px;
+  line-height:1;
+  transition:transform .15s ease;
+}
+.services-dropdown[open] summary{
+  border-color:#d71920;
+  box-shadow:0 0 0 3px #d7192022;
+}
+.services-dropdown[open] summary::after{transform:rotate(180deg)}
+.services-dropdown-list{
+  position:absolute;
+  top:calc(100% + 5px);
+  left:0;
+  right:0;
+  z-index:1000;
+  max-height:220px;
+  overflow-y:auto;
+  padding:6px;
+  margin:0;
+  border:1px solid #34343a;
+  border-radius:10px;
+  background:#0a0a0d;
+  box-shadow:0 14px 30px rgba(0,0,0,.55);
+}
+.services-dropdown-list .service-check{
+  width:100%;
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  margin:0;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#fff;
+  cursor:pointer;
+}
+.services-dropdown-list .service-check:hover{background:#18181b}
+.services-dropdown-list .service-check input[type="checkbox"]{
+  width:18px !important;
+  height:18px !important;
+  min-height:18px !important;
+  flex:0 0 18px;
+  accent-color:#d71920;
 }
 
-.services-dropdown summary {
-  width: 100%;
-  height: 48px;
-  min-height: 48px;
-  padding: 0 16px;
-  border: 1px solid #3b4357;
-  border-radius: 12px;
-  background: #151a2b;
-  color: #f4f4f5;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  list-style: none;
-  box-sizing: border-box;
-}
-
-.services-dropdown summary::-webkit-details-marker {
-  display: none;
-}
-
-.services-dropdown summary::after {
-  content: "⌄";
-  margin-left: auto;
-  font-size: 20px;
-  transition: transform 0.2s ease;
-}
-
-.services-dropdown[open] summary::after {
-  transform: rotate(180deg);
-}
-
-.services-dropdown-list {
-  margin-top: 6px;
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 6px;
-  border: 1px solid #3b4357;
-  border-radius: 12px;
-  background: #151a2b;
-}
-
-.services-dropdown-list .service-check {
-  min-height: 42px;
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.services-dropdown-list .service-check input[type="checkbox"] {
-  width: 18px !important;
-  height: 18px !important;
-  min-height: 18px !important;
-  flex: 0 0 18px;
-}
 /* Pesquisa e filtros */
 .searchBox{display:flex;align-items:center;gap:9px;background:#0a0a0d;border:1px solid #34343a;border-radius:10px;padding:0 12px;margin:8px 0 16px;max-width:620px}.searchBox:focus-within{border-color:#d71920;box-shadow:0 0 0 3px #d7192022}.searchBox input{flex:1;background:transparent;border:0;color:#fff;outline:none;padding:12px 2px;font:inherit}.searchBox button{border:0;background:transparent;color:#aaa;cursor:pointer;display:grid;place-items:center}.filterGrid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr)) auto;gap:10px}.filterGrid input{background:#0a0a0d;color:#fff;border:1px solid #34343a;border-radius:10px;padding:11px 12px;outline:none}.filterGrid input:focus{border-color:#d71920;box-shadow:0 0 0 3px #d7192022}.serviceTags{display:flex;gap:6px;flex-wrap:wrap}.serviceTags span{background:#241012;border:1px solid #5c2024;color:#fecaca;border-radius:999px;padding:4px 8px;font-size:12px}@media(max-width:900px){.filterGrid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.filterGrid{grid-template-columns:1fr}}

@@ -95,10 +95,10 @@ function App(){
  if(profileError||profile===null)return <AccessError message={profileError} signOut={signOut} reload={loadAll}/>;
  if(!profile)return <Splash message="Carregando sistema..."/>;
 
- const role=profile.role,canWrite=['gerente','administrativo'].includes(role),canAdmin=role==='gerente';
- const common={clients,vehicles,services,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
+ const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=['administrador','gerente'].includes(role);
+ const common={clients,vehicles,services,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
  return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>A Casa do Grau Máximo</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
-  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
+  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setOrders={setOrders}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
  </main></div>
 }
 
@@ -107,7 +107,7 @@ function ConfigError(){return <div className="login"><div className="configCard"
 function AccessError({message,signOut,reload}){return <div className="login"><div className="configCard"><div className="brand"><ShieldCheck size={34}/><span>Conta não liberada</span></div><h2>Não foi possível carregar seu perfil</h2><p>{message}</p><div className="inline"><button className="primary" onClick={reload}>Tentar novamente</button><button className="secondary" onClick={signOut}>Sair</button></div></div></div>}
 
 function Login({login,setLogin,signIn,error}){return <div className="login"><form onSubmit={signIn}><div className="brand"><Car size={34}/><span>Garagem GRAU CAR 096</span></div><h2>Acesso ao sistema</h2><p className="loginIntro">Entre com seu usuário autorizado.</p><input type="email" autoComplete="username" required placeholder="E-mail" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/><input type="password" autoComplete="current-password" required placeholder="Senha" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/>{error&&<div className="error">{error}</div>}<button type="submit">Entrar</button><small>O acesso é obrigatório. Usuários e permissões são controlados pelo gerente.</small></form></div>}
-function Sidebar({tab,setTab,role,signOut}){const all=[['dashboard',ClipboardList,'Dashboard'],['clientes',Users,'Clientes'],['veiculos',Car,'Veículos'],['servicos',Wrench,'Serviços'],['historico',ClipboardList,'Histórico'],['agendamentos',CalendarDays,'Agendamentos'],['equipe',UserRoundCog,'Equipe'],['caixa',Wallet,'Caixa'],['relatorios',FileDown,'Relatórios'],['usuarios',ShieldCheck,'Usuários'],['auditoria',ShieldCheck,'Auditoria']];const managerOnly=new Set(['servicos','equipe','caixa','relatorios','usuarios','auditoria']);const items=all.filter(([id])=>role==='gerente'||!managerOnly.has(id));return <aside><div className="logo">
+function Sidebar({tab,setTab,role,signOut}){const all=[['dashboard',ClipboardList,'Dashboard'],['clientes',Users,'Clientes'],['veiculos',Car,'Veículos'],['servicos',Wrench,'Serviços'],['historico',ClipboardList,'Histórico'],['agendamentos',CalendarDays,'Agendamentos'],['equipe',UserRoundCog,'Equipe'],['caixa',Wallet,'Caixa'],['relatorios',FileDown,'Relatórios'],['usuarios',ShieldCheck,'Usuários'],['auditoria',ShieldCheck,'Auditoria']];const managerOnly=new Set(['servicos','equipe','caixa','relatorios','usuarios','auditoria']);const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));return <aside><div className="logo">
   <img src={logoGraucar} alt="Grau Car Garagem" className="grauCarLogo" />
 </div><nav>{items.map(([id,I,l])=><button className={tab===id?'active':''} onClick={()=>setTab(id)} key={id}><I size={19}/>{l}</button>)}</nav><div className="asideBottom"><span>Perfil: {role}</span><button onClick={signOut}><LogOut size={18}/>Sair</button></div></aside>}
 
@@ -117,7 +117,7 @@ function Actions({onView,onEdit,onDelete}){return <div className="actions">{onVi
 function Modal({title,onClose,children}){return <div className="modalBack" onMouseDown={e=>{if(e.target===e.currentTarget)onClose?.()}}><div className="modal"><div className="modalHead"><h3>{title}</h3><button type="button" title="Fechar" onClick={onClose}><X size={18}/></button></div>{children}</div></div>}
 function FormGrid({f,setF,fields=[]}){return <div className="formGrid">{fields.map(([key,placeholder,type='text'])=><input key={key} type={type} placeholder={placeholder} value={f?.[key]??''} onChange={e=>setF({...f,[key]:e.target.value})}/>)}</div>}
 
-function Dashboard({clients,vehicles,services,orders,appointments,payments}){const today=new Date().toISOString().slice(0,10);const todayOrders=orders.filter(o=>String(o.created_at).slice(0,10)===today);const revenue=payments.reduce((s,p)=>s+Number(p.amount||0),0);return <section><div className="cards"><Card t="Clientes" v={clients.length}/><Card t="Veículos" v={vehicles.length}/><Card t="Agendamentos" v={appointments.filter(a=>a.status==='agendado').length}/><Card t="Serviços hoje" v={todayOrders.length}/><Card t="Faturamento registrado" v={money(revenue)}/></div><Panel title="Próximos agendamentos"><Table headers={['Data/Hora','Cliente','Veículo','Serviço','Status']}>{appointments.slice(0,8).map(a=><tr key={a.id}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{vehicles.find(v=>v.id===a.vehicle_id)?.plate||'-'}</td><td>{services.find(s=>s.id===a.service_id)?.name||'-'}</td><td><Status value={a.status}/></td></tr>)}</Table></Panel></section>}
+function Dashboard({clients,vehicles,services,orders,appointments,payments}){const today=new Date().toISOString().slice(0,10);const todayOrders=orders.filter(o=>String(o.created_at).slice(0,10)===today);const revenue=payments.reduce((s,p)=>s+Number(p.amount||0),0);return <section><div className="cards"><Card t="Clientes" v={clients.length}/><Card t="Veículos" v={vehicles.length}/><Card t="Agendamentos" v={appointments.filter(a=>a.status!=='concluido').length}/><Card t="Serviços hoje" v={todayOrders.length}/><Card t="Faturamento registrado" v={money(revenue)}/></div><Panel title="Próximos agendamentos"><Table headers={['Data/Hora','Cliente','Veículo','Serviço','Status']}>{appointments.filter(a=>a.status!=='concluido').slice(0,8).map(a=><tr key={a.id}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{vehicles.find(v=>v.id===a.vehicle_id)?.plate||'-'}</td><td>{services.find(s=>s.id===a.service_id)?.name||'-'}</td><td><Status value={a.status}/></td></tr>)}</Table></Panel></section>}
 function Card({t,v}){return <div className="card"><span>{t}</span><strong>{v}</strong></div>}
 function Status({value}){return <span className={`status ${value}`}>{String(value||'-').replaceAll('_',' ')}</span>}
 
@@ -130,7 +130,7 @@ function VehicleDetail({vehicle,client,orders,services,images,onClose}){return <
 
 function Services({services,canAdmin,insert,update,remove,setServices}){const empty={name:'',price:'',discount_percent:'0',description:''};const [f,setF]=useState(empty),[edit,setEdit]=useState(null);async function save(){if(!f.name||f.price==='')return alert('Informe nome e preço.');const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');setF(empty);setEdit(null)}return <section><Panel title="Tipos de serviços" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}><FormGrid f={f} setF={setF} fields={[['name','Nome do serviço'],['price','Preço (R$)','number'],['description','Descrição']]}/>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}<Table headers={['Serviço','Preço','Desconto','Preço final','Ações']}>{services.map(r=><tr key={r.id}><td>{r.name}</td><td>{money(r.price)}</td><td>{r.discount_percent||0}%</td><td><b>{money(finalPrice(r))}</b></td><td>{canAdmin&&<Actions onEdit={()=>{setEdit(r.id);setF({name:r.name||'',price:r.price||'',discount_percent:r.discount_percent||0,description:r.description||''})}} onDelete={()=>remove('service_types',r.id,setServices,'Excluiu tipo de serviço')}/>}</td></tr>)}</Table>{!canAdmin&&<p className="hint">Somente o gerente pode cadastrar, editar ou excluir tipos de serviço.</p>}</Panel></section>}
 
-function History({orders,vehicles,services,clients,employees,paymentMethods,images,canWrite,profile,insert,uploadImages,setOrders,setPayments}){
+function History({orders,vehicles,services,clients,employees,paymentMethods,images,canWrite,canDeleteHistory,profile,insert,update,remove,uploadImages,setOrders,setPayments}){
   const empty={vehicle_id:'',service_id:'',service_ids:[],employee_id:'',notes:'',status:'concluido',discount_percent:'',charged_amount:'',payment_method_id:'',files:null};
   const [f,setF]=useState(empty),[search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState(''),[formKey,setFormKey]=useState(0);
 
@@ -142,7 +142,7 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
     if(!c?.email)return;
     const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',price:Number(r.charged_amount||0)}));
     try{
-      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
+      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,clientPhone:safePhone(c.phone),vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
       if(error)console.warn('Erro ao enviar e-mail:',error.message);
       else if(data?.error)console.warn('Erro ao enviar e-mail:',data.error);
       else console.log('E-mail de conclusão enviado com sucesso.');
@@ -175,6 +175,52 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
     const names=group.rows.map(o=>services.find(s=>s.id===o.service_id)?.name).filter(Boolean).join(', ');
     const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu ${group.rows.length>1?'os serviços':'o serviço'}: ${names}. Já pode ser retirado. Obrigado!`);
     window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank');
+  }
+
+  async function changeHistoryStatus(group,newStatus){
+    const currentStatuses=[...new Set(group.rows.map(o=>o.status))];
+    const alreadyCompleted=currentStatuses.every(status=>status==='concluido');
+
+    if(alreadyCompleted){
+      alert('Este serviço já foi concluído e não pode ter o status alterado.');
+      return;
+    }
+
+    if(!currentStatuses.every(status=>status==='em_andamento')){
+      alert('Somente serviços que estão Em andamento podem ser alterados para Concluído.');
+      return;
+    }
+
+    if(newStatus!=='concluido')return;
+
+    const confirmed=confirm('Confirmar alteração do status de Em andamento para Concluído? Após concluir, o status não poderá mais ser alterado e as notificações serão enviadas ao cliente.');
+    if(!confirmed)return;
+
+    const completedAt=new Date().toISOString();
+    const updatedRows=[];
+    for(const row of group.rows){
+      const ok=await update('service_orders',row.id,{status:'concluido',completed_at:row.completed_at||completedAt},setOrders,'Concluiu serviço pelo histórico');
+      if(!ok)return;
+      updatedRows.push({...row,status:'concluido',completed_at:row.completed_at||completedAt});
+    }
+
+    const total=updatedRows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
+    await notifyCompletion(updatedRows,total);
+  }
+
+  async function deleteHistoryGroup(group){
+    if(!canDeleteHistory)return;
+    if(!confirm('Tem certeza que deseja excluir este serviço do histórico? Esta ação não poderá ser desfeita.'))return;
+    const ids=group.rows.map(r=>r.id);
+    const {error:imgError}=await supabase.from('service_images').delete().in('service_order_id',ids);
+    if(imgError){alert(imgError.message);return;}
+    const {error:payError}=await supabase.from('payments').delete().in('service_order_id',ids);
+    if(payError){alert(payError.message);return;}
+    const {error}=await supabase.from('service_orders').delete().in('id',ids);
+    if(error){alert(error.message);return;}
+    const idSet=new Set(ids);
+    setOrders(current=>current.filter(r=>!idSet.has(r.id)));
+    setPayments(current=>current.filter(r=>!idSet.has(r.service_order_id)));
   }
 
   const historyGroups=Object.values(orders.reduce((acc,o)=>{
@@ -214,12 +260,12 @@ function History({orders,vehicles,services,clients,employees,paymentMethods,imag
     </Panel>
 
     <Panel title="Histórico de serviços realizados">
-      {filteredHistory.length===0?<p className="hint">Nenhum serviço encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Ações']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),statuses=[...new Set(g.rows.map(o=>o.status))];return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{statuses.map(st=><Status key={st} value={st}/>)}</td><td>{g.rows.some(o=>o.status==='concluido')&&<button type="button" className="secondary" title="Enviar WhatsApp" onClick={()=>whatsapp(g)}><MessageCircle size={16}/></button>}</td></tr>})}</Table>}
+      {filteredHistory.length===0?<p className="hint">Nenhum serviço encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Ações']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),statuses=[...new Set(g.rows.map(o=>o.status))];return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{canWrite&&statuses.length===1&&statuses[0]==='em_andamento'?<select value="em_andamento" onChange={e=>changeHistoryStatus(g,e.target.value)}><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select>:statuses.map(st=><Status key={st} value={st}/>)}</td><td><div className="actions">{g.rows.some(o=>o.status==='concluido')&&<button type="button" className="secondary" title="Enviar WhatsApp" onClick={()=>whatsapp(g)}><MessageCircle size={16}/></button>}{canDeleteHistory&&<button type="button" className="danger" title="Excluir do histórico" onClick={()=>deleteHistoryGroup(g)}><Trash2 size={16}/></button>}</div></td></tr>})}</Table>}
     </Panel>
   </section>
 }
 
-function Appointments({appointments,clients,vehicles,services,canWrite,insert,setAppointments}){
+function Appointments({appointments,clients,vehicles,services,canWrite,profile,insert,setAppointments,setOrders}){
   const empty={client_id:'',vehicle_id:'',service_ids:[],scheduled_at:'',scheduled_date:'',scheduled_time:'',notes:'',status:'agendado'};
   const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:''}),[formKey,setFormKey]=useState(0);
   const available=vehicles.filter(v=>!f.client_id||v.client_id===f.client_id);
@@ -229,11 +275,22 @@ function Appointments({appointments,clients,vehicles,services,canWrite,insert,se
     if(!c?.email)return;
     const doneServices=serviceIds.map(id=>{const s=services.find(x=>x.id===id);return {name:s?.name||'Serviço',price:Number(finalPrice(s)||0)}});
     try{
-      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
+      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,clientPhone:safePhone(c.phone),vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
       if(error)console.warn('Erro ao enviar e-mail do agendamento:',error.message);
       else if(data?.error)console.warn('Erro ao enviar e-mail do agendamento:',data.error);
       else console.log('E-mail do agendamento concluído enviado com sucesso.');
     }catch(e){console.warn('Notificação automática do agendamento não configurada:',e.message)}
+  }
+
+  async function moveCompletedAppointmentToHistory(serviceIds){
+    const atendimentoId=crypto.randomUUID();
+    const rows=[];
+    for(const service_id of serviceIds){
+      const service=services.find(s=>s.id===service_id);
+      const row=await insert('service_orders',{vehicle_id:f.vehicle_id,service_id,atendimento_id:atendimentoId,employee_id:null,performed_by:profile?.full_name,status:'concluido',notes:f.notes,charged_amount:Number(finalPrice(service)||0),completed_at:new Date().toISOString()},setOrders,'Concluiu agendamento e enviou ao histórico');
+      if(row)rows.push(row);
+    }
+    return rows;
   }
 
   async function save(){
@@ -243,6 +300,7 @@ function Appointments({appointments,clients,vehicles,services,canWrite,insert,se
     const localDate=new Date(Number(ano),Number(mes)-1,Number(dia),Number(f.scheduled_time.slice(0,2)),Number(f.scheduled_time.slice(3,5)));
     if(Number.isNaN(localDate.getTime())||localDate.getDate()!==Number(dia)||localDate.getMonth()!==Number(mes)-1||localDate.getFullYear()!==Number(ano))return alert('Data ou horário inválido.');
     const when=localDate.toISOString();
+    if(f.status==='concluido'&&!confirm('Confirmar este agendamento como Concluído? Ele sairá da agenda, será enviado ao Histórico e as notificações serão disparadas ao cliente.'))return;
     let shouldNotify=f.status==='concluido';
     if(edit){
       const ids=String(edit).split('|');
@@ -251,12 +309,15 @@ function Appointments({appointments,clients,vehicles,services,canWrite,insert,se
       for(const id of ids)if(!await removeAppointmentNoConfirm(id))return;
     }
     for(const service_id of f.service_ids){const row=await insert('appointments',{client_id:f.client_id,vehicle_id:f.vehicle_id,service_id,scheduled_at:when,notes:f.notes,status:f.status},setAppointments,edit?'Editou agendamento':'Criou agendamento');if(!row)return}
-    if(shouldNotify){const total=f.service_ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0);await notifyAppointmentCompletion(f.service_ids,total)}
+    if(shouldNotify){
+      const historyRows=await moveCompletedAppointmentToHistory(f.service_ids);
+      if(historyRows.length){const total=historyRows.reduce((sum,r)=>sum+Number(r.charged_amount||0),0);await notifyAppointmentCompletion(f.service_ids,total)}
+    }
     setF({...empty});setEdit(null);setFormKey(k=>k+1);
   }
 
   async function removeAppointmentNoConfirm(id){const {error}=await supabase.from('appointments').delete().eq('id',id);if(error){alert(error.message);return false}setAppointments(x=>x.filter(r=>r.id!==id));return true}
-  const groups=Object.values(appointments.reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));
+  const groups=Object.values(appointments.filter(a=>a.status!=='concluido').reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));
   const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');return (!filters.date||String(a.scheduled_at).slice(0,10)===filters.date)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});
   async function deleteGroup(a){if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;for(const id of a.ids)await removeAppointmentNoConfirm(id)}
   function editGroup(a){const d=new Date(a.scheduled_at);setEdit(a.ids.join('|'));setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:[...a.service_ids],scheduled_at:a.scheduled_at,scheduled_date:d.toLocaleDateString('pt-BR'),scheduled_time:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false}),notes:a.notes||'',status:a.status});setFormKey(k=>k+1)}
@@ -280,7 +341,34 @@ function Cash({payments,paymentMethods,orders,cashClosings,canAdmin,insert,remov
 function Reports({clients,vehicles,services,orders,employees,payments,paymentMethods}){const [from,setFrom]=useState(''),[to,setTo]=useState('');const filtered=orders.filter(o=>(!from||String(o.created_at).slice(0,10)>=from)&&(!to||String(o.created_at).slice(0,10)<=to));const rows=filtered.map(o=>{const v=vehicles.find(v=>v.id===o.vehicle_id),c=clients.find(c=>c.id===v?.client_id),s=services.find(s=>s.id===o.service_id),e=employees.find(e=>e.id===o.employee_id);return {Data:dt(o.completed_at||o.created_at),Cliente:c?.name||'',Placa:v?.plate||'',Veiculo:`${v?.brand||''} ${v?.model||''}`.trim(),Servico:s?.name||'',Funcionario:e?.name||o.performed_by||'',Valor:Number(o.charged_amount||finalPrice(s)),Status:o.status||''}});function pdf(){const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.text('Relatório de Serviços - Garagem GRAU CAR 096',14,16);doc.setFontSize(10);doc.text(`Período: ${from||'início'} a ${to||'hoje'} | Total: ${money(rows.reduce((s,r)=>s+r.Valor,0))}`,14,23);autoTable(doc,{startY:28,head:[['Data','Cliente','Placa','Veículo','Serviço','Funcionário','Valor','Status']],body:rows.map(r=>[r.Data,r.Cliente,r.Placa,r.Veiculo,r.Servico,r.Funcionario,money(r.Valor),r.Status])});doc.save('relatorio-servicos.pdf')}function excel(){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Serviços');const payRows=payments.map(p=>({Data:dt(p.paid_at),Forma:paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'',Valor:Number(p.amount||0)}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(payRows),'Pagamentos');XLSX.writeFile(wb,'relatorio-estetica-veicular.xlsx')}
  return <section><Panel title="Relatórios PDF e Excel" action={<div className="reportBtns"><button className="secondary" onClick={pdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={excel}><FileDown size={17}/>Excel</button></div>}><div className="formGrid two"><label>De<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Até<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><div className="cashSummary"><div><span>Serviços no período</span><strong>{rows.length}</strong></div><div><span>Total de serviços</span><strong>{money(rows.reduce((s,r)=>s+r.Valor,0))}</strong></div></div><Table headers={['Data','Cliente','Placa','Serviço','Funcionário','Valor']}>{rows.map((r,i)=><tr key={i}><td>{r.Data}</td><td>{r.Cliente}</td><td>{r.Placa}</td><td>{r.Servico}</td><td>{r.Funcionario}</td><td>{money(r.Valor)}</td></tr>)}</Table></Panel></section>}
 
-function UsersPanel({profiles,canAdmin,supabase,addLog,setProfiles}){const empty={full_name:'',email:'',password:'',role:'visualizador'};const [f,setF]=useState(empty),[busy,setBusy]=useState(false);async function create(){if(!canAdmin)return;if(!f.full_name||!f.email||f.password.length<6)return alert('Informe nome, e-mail e uma senha com pelo menos 6 caracteres.');setBusy(true);try{const {data,error}=await supabase.functions.invoke('create-user',{body:{...f,email:f.email.trim().toLowerCase()}});if(error)throw error;if(data?.error)throw new Error(data.error);setProfiles(x=>[...x,data.user]);await addLog(`Criou usuário ${f.email}`,'profiles',data.user.id);setF(empty);alert('Usuário criado com sucesso.')}catch(e){alert((e.message||'Não foi possível criar o usuário.')+'\n\nConfirme se a Edge Function create-user foi publicada no Supabase.')}finally{setBusy(false)}}return <section><Panel title="Usuários do sistema" action={canAdmin&&<button className="primary" disabled={busy} onClick={create}><Plus size={17}/>{busy?'Criando...':'Criar usuário'}</button>}><div className="formGrid"><input placeholder="Nome completo" value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/><input type="email" placeholder="E-mail" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input type="password" placeholder="Senha inicial" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><select value={f.role} onChange={e=>setF({...f,role:e.target.value})}><option value="gerente">Gerente</option><option value="administrativo">Administrativo</option><option value="visualizador">Visualizador</option></select></div><Table headers={['Nome','E-mail','Perfil']}>{profiles.map(p=><tr key={p.id}><td>{p.full_name}</td><td>{p.email||'-'}</td><td><Status value={p.role}/></td></tr>)}</Table>{!canAdmin&&<p className="hint">Somente o gerente pode criar usuários.</p>}<div className="roleGrid"><div><b>Gerente</b><p>Acesso total, usuários, serviços, equipe, comissões e fechamento de caixa.</p></div><div><b>Administrativo</b><p>Clientes, veículos, agendamentos e execução dos serviços.</p></div><div><b>Visualizador</b><p>Acesso para consulta, sem alterações.</p></div></div></Panel></section>}
+function UsersPanel({profiles,canAdmin,canSuperAdmin,profile,supabase,addLog,setProfiles}){
+ const empty={full_name:'',email:'',password:'',role:'visualizador'};
+ const [f,setF]=useState(empty),[busy,setBusy]=useState(false);
+ const allowedRoles=canSuperAdmin?['administrador','gerente','administrativo','visualizador']:['administrativo','visualizador'];
+ async function create(){
+  if(!canAdmin)return;
+  if(!allowedRoles.includes(f.role))return alert('Você não possui permissão para criar este perfil.');
+  if(!f.full_name||!f.email||f.password.length<6)return alert('Informe nome, e-mail e uma senha com pelo menos 6 caracteres.');
+  setBusy(true);
+  try{
+   const {data,error}=await supabase.functions.invoke('create-user',{body:{...f,email:f.email.trim().toLowerCase()}});
+   if(error)throw error;if(data?.error)throw new Error(data.error);
+   setProfiles(x=>[...x,data.user]);await addLog(`Criou usuário ${f.email}`,'profiles',data.user.id);setF(empty);alert('Usuário criado com sucesso.');
+  }catch(e){alert((e.message||'Não foi possível criar o usuário.')+'\n\nConfirme se a Edge Function create-user aceita o perfil selecionado.')}finally{setBusy(false)}
+ }
+ async function changeRole(p,newRole){
+  if(!canSuperAdmin)return;
+  if(p.id===profile?.id)return alert('Para segurança, altere o seu próprio perfil diretamente no Supabase.');
+  const {data,error}=await supabase.from('profiles').update({role:newRole}).eq('id',p.id).select().single();
+  if(error){alert(error.message);return;}
+  setProfiles(x=>x.map(r=>r.id===p.id?data:r));await addLog(`Alterou perfil de ${p.email||p.full_name} para ${newRole}`,'profiles',p.id);
+ }
+ return <section><Panel title="Usuários do sistema" action={canAdmin&&<button className="primary" disabled={busy} onClick={create}><Plus size={17}/>{busy?'Criando...':'Criar usuário'}</button>}>
+  <div className="formGrid"><input placeholder="Nome completo" value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/><input type="email" placeholder="E-mail" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input type="password" placeholder="Senha inicial" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><select value={f.role} onChange={e=>setF({...f,role:e.target.value})}>{allowedRoles.map(r=><option key={r} value={r}>{r==='administrador'?'Administrador':r==='gerente'?'Gerente':r==='administrativo'?'Administrativo':'Visualizador'}</option>)}</select></div>
+  <Table headers={['Nome','E-mail','Perfil']}>{profiles.map(p=><tr key={p.id}><td>{p.full_name}</td><td>{p.email||'-'}</td><td>{canSuperAdmin&&p.id!==profile?.id?<select value={p.role} onChange={e=>changeRole(p,e.target.value)}><option value="administrador">Administrador</option><option value="gerente">Gerente</option><option value="administrativo">Administrativo</option><option value="visualizador">Visualizador</option></select>:<Status value={p.role}/>}</td></tr>)}</Table>
+  <div className="roleGrid"><div><b>Administrador</b><p>Perfil acima do gerente. Acesso total e controle dos perfis dos gerentes.</p></div><div><b>Gerente</b><p>Acesso operacional completo e pode excluir registros do histórico, mas não controla administradores ou gerentes.</p></div><div><b>Administrativo</b><p>Clientes, veículos, agendamentos e execução dos serviços.</p></div><div><b>Visualizador</b><p>Acesso para consulta, sem alterações.</p></div></div>
+ </Panel></section>
+}
 function Audit({logs}){return <section><Panel title="Histórico de ações"><Table headers={['Data/Hora','Usuário','Ação','Tipo']}>{logs.map(l=><tr key={l.id}><td>{dt(l.created_at)}</td><td>{l.user_name||'-'}</td><td>{l.action}</td><td>{l.entity_type||'-'}</td></tr>)}</Table></Panel></section>}
 
 createRoot(document.getElementById('root')).render(<App/>);
