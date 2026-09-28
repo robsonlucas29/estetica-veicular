@@ -329,3 +329,38 @@ aside nav {
   color:#fde68a;
   font-size:12px;
 }
+
+/* Agendamento unificado: anexos e links de arquivos */
+.serviceTags a{
+  color:#fecaca;
+  text-decoration:none;
+  background:#241012;
+  border:1px solid #5c2024;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:12px;
+}
+.serviceTags a:hover{text-decoration:underline}
+.serviceTags span:has(a){display:inline-flex;align-items:center;gap:5px}
+.serviceTags span button{
+  border:0;
+  background:transparent;
+  color:#fca5a5;
+  padding:0;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.fileLink{
+  display:flex;
+  min-height:70px;
+  align-items:center;
+  justify-content:center;
+  padding:10px;
+  border:1px solid #34343a;
+  border-radius:10px;
+  color:#fecaca;
+  background:#18181b;
+  text-align:center;
+  word-break:break-word;
+}

@@ -37,7 +37,7 @@ const brDateToIso=value=>{
 function App(){
  const [session,setSession]=useState(undefined),[profile,setProfile]=useState(undefined),[tab,setTab]=useState('dashboard');
  const [clients,setClients]=useState([]),[vehicles,setVehicles]=useState([]),[services,setServices]=useState([]),[vehicleCategories,setVehicleCategories]=useState([]),[orders,setOrders]=useState([]),[images,setImages]=useState([]),[logs,setLogs]=useState([]);
- const [appointments,setAppointments]=useState([]),[employees,setEmployees]=useState([]),[paymentMethods,setPaymentMethods]=useState([]),[payments,setPayments]=useState([]),[cashClosings,setCashClosings]=useState([]),[profiles,setProfiles]=useState([]);
+ const [appointments,setAppointments]=useState([]),[appointmentFiles,setAppointmentFiles]=useState([]),[employees,setEmployees]=useState([]),[paymentMethods,setPaymentMethods]=useState([]),[payments,setPayments]=useState([]),[cashClosings,setCashClosings]=useState([]),[profiles,setProfiles]=useState([]);
  const [login,setLogin]=useState({email:'',password:''}),[error,setError]=useState(''),[loadingData,setLoadingData]=useState(false),[profileError,setProfileError]=useState('');
  const configured=Boolean(supabase);
 
@@ -76,11 +76,11 @@ function App(){
     supabase.from('clients').select('*').order('created_at',{ascending:false}),supabase.from('vehicles').select('*').order('created_at',{ascending:false}),supabase.from('service_types').select('*').order('name'),supabase.from('vehicle_categories').select('*').order('name'),
     supabase.from('service_orders').select('*').order('created_at',{ascending:false}),supabase.from('service_images').select('*').order('created_at',{ascending:false}),supabase.from('audit_logs_view').select('*').order('created_at',{ascending:false}).limit(250),
     supabase.from('appointments').select('*').order('scheduled_at'),supabase.from('employees').select('*').order('name'),supabase.from('payment_methods').select('*').order('name'),supabase.from('payments').select('*').order('paid_at',{ascending:false}),
-    supabase.from('cash_closings').select('*').order('closed_at',{ascending:false}),supabase.from('profiles').select('*').order('full_name')
+    supabase.from('cash_closings').select('*').order('closed_at',{ascending:false}),supabase.from('profiles').select('*').order('full_name'),supabase.from('appointment_files').select('*').order('created_at',{ascending:false})
    ]);
    const firstError=q.find(x=>x.error)?.error;if(firstError)throw firstError;
    setClients(q[0].data||[]);setVehicles(q[1].data||[]);setServices(q[2].data||[]);setVehicleCategories(q[3].data||[]);setOrders(q[4].data||[]);setImages(q[5].data||[]);setLogs(q[6].data||[]);
-   setAppointments(q[7].data||[]);setEmployees(q[8].data||[]);setPaymentMethods(q[9].data||[]);setPayments(q[10].data||[]);setCashClosings(q[11].data||[]);setProfiles(q[12].data||[]);
+   setAppointments(q[7].data||[]);setEmployees(q[8].data||[]);setPaymentMethods(q[9].data||[]);setPayments(q[10].data||[]);setCashClosings(q[11].data||[]);setProfiles(q[12].data||[]);setAppointmentFiles(q[13].data||[]);
   }catch(e){setProfileError(e.message||'Não foi possível carregar os dados do sistema.');}
   finally{setLoadingData(false);}
  }
@@ -100,6 +100,9 @@ function App(){
  async function uploadImages(orderId,files){if(!files?.length)return;
   for(const file of files){const path=`${orderId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await supabase.storage.from('service-images').upload(path,file);if(up.error){alert(up.error.message);continue}const {data:{publicUrl}}=supabase.storage.from('service-images').getPublicUrl(path);const {data}=await supabase.from('service_images').insert({service_order_id:orderId,image_url:publicUrl,file_name:file.name}).select().single();if(data)setImages(x=>[data,...x])}
  }
+ async function uploadAppointmentFiles(groupId,files){if(!files?.length||!groupId)return;
+  for(const file of files){const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`appointments/${groupId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;const up=await supabase.storage.from('service-images').upload(path,file);if(up.error){alert(up.error.message);continue}const {data:{publicUrl}}=supabase.storage.from('service-images').getPublicUrl(path);const {data,error}=await supabase.from('appointment_files').insert({appointment_group_id:groupId,file_url:publicUrl,file_name:file.name,file_type:file.type||null,storage_path:path}).select().single();if(error){alert(error.message);continue}if(data)setAppointmentFiles(x=>[data,...x])}
+ }
 
  if(!configured)return <ConfigError/>;
  if(session===undefined)return <Splash message="Verificando sessão..."/>;
@@ -109,9 +112,9 @@ function App(){
  if(!profile)return <Splash message="Carregando sistema..."/>;
 
  const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=role==='administrador';
- const common={clients,vehicles,services,vehicleCategories,orders,images,appointments,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,reload:loadAll};
+ const common={clients,vehicles,services,vehicleCategories,orders,images,appointments,appointmentFiles,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,uploadAppointmentFiles,reload:loadAll};
  return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>A Casa do Grau Máximo</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
-  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles} setVehicleCategories={setVehicleCategories}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setOrders={setOrders}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
+  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles} setVehicleCategories={setVehicleCategories}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setAppointmentFiles={setAppointmentFiles} setOrders={setOrders} setPayments={setPayments} setImages={setImages}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
  </main></div>
 }
 
@@ -130,7 +133,7 @@ function Actions({onView,onEdit,onDelete}){return <div className="actions">{onVi
 function Modal({title,onClose,children}){return <div className="modalBack" onMouseDown={e=>{if(e.target===e.currentTarget)onClose?.()}}><div className="modal"><div className="modalHead"><h3>{title}</h3><button type="button" title="Fechar" onClick={onClose}><X size={18}/></button></div>{children}</div></div>}
 function FormGrid({f,setF,fields=[]}){return <div className="formGrid">{fields.map(([key,placeholder,type='text'])=><input key={key} type={type} placeholder={placeholder} value={f?.[key]??''} onChange={e=>setF({...f,[key]:e.target.value})}/>)}</div>}
 
-function Dashboard({clients,vehicles,services,orders,appointments,payments}){const today=new Date().toISOString().slice(0,10);const todayOrders=orders.filter(o=>String(o.created_at).slice(0,10)===today);const revenue=payments.reduce((s,p)=>s+Number(p.amount||0),0);return <section><div className="cards"><Card t="Clientes" v={clients.length}/><Card t="Veículos" v={vehicles.length}/><Card t="Agendamentos" v={appointments.filter(a=>a.status!=='concluido').length}/><Card t="Serviços hoje" v={todayOrders.length}/><Card t="Faturamento registrado" v={money(revenue)}/></div><Panel title="Próximos agendamentos"><Table headers={['Data/Hora','Cliente','Veículo','Serviço','Status']}>{appointments.filter(a=>a.status!=='concluido').slice(0,8).map(a=><tr key={a.id}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{vehicles.find(v=>v.id===a.vehicle_id)?.plate||'-'}</td><td>{services.find(s=>s.id===a.service_id)?.name||'-'}</td><td><Status value={a.status}/></td></tr>)}</Table></Panel></section>}
+function Dashboard({clients,vehicles,services,orders,appointments}){const today=new Date().toISOString().slice(0,10);const completedOrders=orders.filter(o=>o.status==='concluido');const todayOrders=completedOrders.filter(o=>String(o.completed_at||o.created_at).slice(0,10)===today);const revenue=completedOrders.reduce((s,o)=>s+Number(o.charged_amount||finalPrice(services.find(x=>x.id===o.service_id))||0),0);return <section><div className="cards"><Card t="Clientes" v={clients.length}/><Card t="Veículos" v={vehicles.length}/><Card t="Agendamentos" v={appointments.filter(a=>a.status!=='concluido').length}/><Card t="Serviços hoje" v={todayOrders.length}/><Card t="Faturamento registrado" v={money(revenue)}/></div><Panel title="Próximos agendamentos"><Table headers={['Data/Hora','Cliente','Veículo','Serviço','Status']}>{appointments.filter(a=>a.status!=='concluido').slice(0,8).map(a=><tr key={a.id}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{vehicles.find(v=>v.id===a.vehicle_id)?.plate||'-'}</td><td>{services.find(s=>s.id===a.service_id)?.name||'-'}</td><td><Status value={a.status}/></td></tr>)}</Table></Panel></section>}
 function Card({t,v}){return <div className="card"><span>{t}</span><strong>{v}</strong></div>}
 function Status({value}){return <span className={`status ${value}`}>{String(value||'-').replaceAll('_',' ')}</span>}
 
@@ -184,7 +187,7 @@ function Vehicles({vehicles,clients,orders,services,vehicleCategories,images,can
   {vehicle&&<VehicleDetail vehicle={vehicle} category={vehicleCategories.find(c=>c.id===vehicle.category_id)} client={clients.find(c=>c.id===vehicle.client_id)} orders={orders.filter(o=>o.vehicle_id===vehicle.id)} services={services} images={images} onClose={()=>setDetail(null)}/>}
  </section>
 }
-function VehicleDetail({vehicle,category,client,orders,services,images,onClose}){return <Modal title={`Veículo ${vehicle.plate}`} onClose={onClose}><div className="detailGrid"><div><b>Cliente</b><span>{client?.name||'-'}</span></div><div><b>Veículo</b><span>{vehicle.brand} {vehicle.model}</span></div><div><b>Categoria</b><span>{category?.name||'Sem categoria'}</span></div><div><b>Cor/Ano</b><span>{vehicle.color||'-'} · {vehicle.year||'-'}</span></div></div><h4>Histórico de serviços</h4>{orders.length===0?<p className="hint">Nenhum serviço registrado.</p>:orders.map(o=>{const pics=images.filter(i=>i.service_order_id===o.id);return <div className="serviceDetail" key={o.id}><div><b>{services.find(s=>s.id===o.service_id)?.name||'Serviço'}</b><span>{dt(o.completed_at||o.created_at)} · {o.performed_by||'-'}</span><p>{o.notes||'Sem observações.'}</p></div>{pics.length>0&&<div className="gallery">{pics.map(i=><a key={i.id} href={i.image_url} target="_blank"><img src={i.image_url}/></a>)}</div>}</div>})}</Modal>}
+function VehicleDetail({vehicle,category,client,orders,services,images,onClose}){return <Modal title={`Veículo ${vehicle.plate}`} onClose={onClose}><div className="detailGrid"><div><b>Cliente</b><span>{client?.name||'-'}</span></div><div><b>Veículo</b><span>{vehicle.brand} {vehicle.model}</span></div><div><b>Categoria</b><span>{category?.name||'Sem categoria'}</span></div><div><b>Cor/Ano</b><span>{vehicle.color||'-'} · {vehicle.year||'-'}</span></div></div><h4>Histórico de serviços</h4>{orders.length===0?<p className="hint">Nenhum serviço registrado.</p>:orders.map(o=>{const pics=images.filter(i=>i.service_order_id===o.id);return <div className="serviceDetail" key={o.id}><div><b>{services.find(s=>s.id===o.service_id)?.name||'Serviço'}</b><span>{dt(o.completed_at||o.created_at)} · {o.performed_by||'-'}</span><p>{o.notes||'Sem observações.'}</p></div>{pics.length>0&&<div className="gallery">{pics.map(i=>{const isImage=/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(i.file_name||'');return <a key={i.id} href={i.image_url} target="_blank" rel="noreferrer">{isImage?<img src={i.image_url} alt={i.file_name||'Imagem do serviço'}/>:<span className="fileLink">{i.file_name||'Abrir arquivo'}</span>}</a>})}</div>}</div>})}</Modal>}
 
 function Services({services,vehicleCategories,canAdmin,insert,update,remove,setServices}){
  const empty={name:'',category_id:'',price:'',discount_percent:'0',description:''};
@@ -212,102 +215,9 @@ function Services({services,vehicleCategories,canAdmin,insert,update,remove,setS
  </Panel></section>
 }
 
-function History({orders,vehicles,services,vehicleCategories,clients,employees,paymentMethods,images,canWrite,canDeleteHistory,profile,insert,update,remove,uploadImages,setOrders,setPayments}){
-  const empty={vehicle_id:'',service_id:'',service_ids:[],employee_id:'',notes:'',status:'concluido',discount_percent:'',charged_amount:'',payment_method_id:'',files:null};
-  const [f,setF]=useState(empty),[search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState(''),[formKey,setFormKey]=useState(0);
-  const selectedVehicle=vehicles.find(v=>v.id===f.vehicle_id);
-  const availableServices=selectedVehicle?.category_id?services.filter(s=>s.category_id===selectedVehicle.category_id):[];
-
-  function clearForm(){setF({...empty});setFormKey(k=>k+1)}
-
-  async function notifyCompletion(rows,total){
-    if(!rows?.length)return;
-    const first=rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id);
-    if(!c?.email)return;
-    const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',price:Number(r.charged_amount||0)}));
-    try{
-      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,clientPhone:safePhone(c.phone),vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
-      if(error)console.warn('Erro ao enviar e-mail:',error.message);
-      else if(data?.error)console.warn('Erro ao enviar e-mail:',data.error);
-      else console.log('E-mail de conclusão enviado com sucesso.');
-    }catch(e){console.warn('Notificação automática não configurada:',e.message)}
-  }
-
-  async function save(){
-    if(!f.vehicle_id||!f.service_ids?.length)return alert('Selecione o veículo e pelo menos um serviço.');
-    const atendimentoId=crypto.randomUUID();
-    const selectedServices=services.filter(s=>f.service_ids.includes(s.id));
-    const subtotal=selectedServices.reduce((total,s)=>total+Number(finalPrice(s)||0),0);
-    const total=Number(f.charged_amount!==''?f.charged_amount:subtotal);
-    const ratio=subtotal>0?total/subtotal:1;
-    const rows=[];
-    for(const sv of selectedServices){
-      const serviceAmount=Number((Number(finalPrice(sv)||0)*ratio).toFixed(2));
-      const row=await insert('service_orders',{vehicle_id:f.vehicle_id,service_id:sv.id,atendimento_id:atendimentoId,employee_id:f.employee_id||null,performed_by:profile?.full_name,status:f.status,notes:f.notes,charged_amount:serviceAmount,completed_at:f.status==='concluido'?new Date().toISOString():null},setOrders,'Registrou serviço');
-      if(row)rows.push(row);
-    }
-    if(!rows.length)return;
-    if(f.payment_method_id&&f.status==='concluido')await insert('payments',{service_order_id:rows[0].id,payment_method_id:f.payment_method_id,amount:total,paid_at:new Date().toISOString()},setPayments,'Registrou pagamento');
-    for(const serviceRow of rows)await uploadImages(serviceRow.id,f.files);
-    if(f.status==='concluido')await notifyCompletion(rows,total);
-    clearForm();
-  }
-
-  function whatsapp(group){
-    const first=group.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),phone=safePhone(c?.phone);
-    if(!phone)return alert('Cliente sem telefone cadastrado.');
-    const names=group.rows.map(o=>services.find(s=>s.id===o.service_id)?.name).filter(Boolean).join(', ');
-    const msg=encodeURIComponent(`Olá, ${c?.name||''}! Seu veículo ${v?.brand||''} ${v?.model||''} (${v?.plate||''}) concluiu ${group.rows.length>1?'os serviços':'o serviço'}: ${names}. Já pode ser retirado. Obrigado!`);
-    window.open(`https://wa.me/55${phone}?text=${msg}`,'_blank');
-  }
-
-  async function changeHistoryStatus(group,newStatus){
-    const currentStatuses=[...new Set(group.rows.map(o=>o.status))];
-    const alreadyCompleted=currentStatuses.every(status=>status==='concluido');
-
-    if(alreadyCompleted){
-      alert('Este serviço já foi concluído e não pode ter o status alterado.');
-      return;
-    }
-
-    if(!currentStatuses.every(status=>status==='em_andamento')){
-      alert('Somente serviços que estão Em andamento podem ser alterados para Concluído.');
-      return;
-    }
-
-    if(newStatus!=='concluido')return;
-
-    const confirmed=confirm('Confirmar alteração do status de Em andamento para Concluído? Após concluir, o status não poderá mais ser alterado e as notificações serão enviadas ao cliente.');
-    if(!confirmed)return;
-
-    const completedAt=new Date().toISOString();
-    const updatedRows=[];
-    for(const row of group.rows){
-      const ok=await update('service_orders',row.id,{status:'concluido',completed_at:row.completed_at||completedAt},setOrders,'Concluiu serviço pelo histórico');
-      if(!ok)return;
-      updatedRows.push({...row,status:'concluido',completed_at:row.completed_at||completedAt});
-    }
-
-    const total=updatedRows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
-    await notifyCompletion(updatedRows,total);
-  }
-
-  async function deleteHistoryGroup(group){
-    if(!canDeleteHistory)return;
-    if(!confirm('Tem certeza que deseja excluir este serviço do histórico? Esta ação não poderá ser desfeita.'))return;
-    const ids=group.rows.map(r=>r.id);
-    const {error:imgError}=await supabase.from('service_images').delete().in('service_order_id',ids);
-    if(imgError){alert(imgError.message);return;}
-    const {error:payError}=await supabase.from('payments').delete().in('service_order_id',ids);
-    if(payError){alert(payError.message);return;}
-    const {error}=await supabase.from('service_orders').delete().in('id',ids);
-    if(error){alert(error.message);return;}
-    const idSet=new Set(ids);
-    setOrders(current=>current.filter(r=>!idSet.has(r.id)));
-    setPayments(current=>current.filter(r=>!idSet.has(r.service_order_id)));
-  }
-
-  const historyGroups=Object.values(orders.reduce((acc,o)=>{
+function History({orders,vehicles,services,clients,employees,images}){
+  const [search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState('');
+  const historyGroups=Object.values(orders.filter(o=>o.status==='concluido').reduce((acc,o)=>{
     const key=o.atendimento_id||o.id;
     if(!acc[key])acc[key]={key,rows:[],created_at:o.completed_at||o.created_at};
     acc[key].rows.push(o);
@@ -321,64 +231,90 @@ function History({orders,vehicles,services,vehicleCategories,clients,employees,p
     const serviceNames=g.rows.map(o=>services.find(s=>s.id===o.service_id)?.name||'').join(' ');
     const employeeNames=g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'').join(' ');
     const haystack=`${c?.name||''} ${v?.plate||''} ${v?.brand||''} ${v?.model||''} ${serviceNames} ${employeeNames}`.toLowerCase();
-    const filterIso=brDateToIso(dateFilter);return (!q||haystack.includes(q))&&(!dateFilter||!filterIso||String(g.created_at).slice(0,10)===filterIso);
+    const filterIso=brDateToIso(dateFilter);
+    return (!q||haystack.includes(q))&&(!dateFilter||!filterIso||String(g.created_at).slice(0,10)===filterIso);
   });
 
   return <section>
-    <Panel title="Registrar serviço realizado" action={canWrite&&<button className="primary" onClick={save}><Plus size={17}/>Registrar</button>}>
-      <div className="formGrid">
-        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_id:'',service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Veículo</option>{vehicles.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select>
-        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Tipos de serviço'}</summary><div className="services-dropdown-list">{availableServices.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);const subtotal=ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(x=>x.id===id))||0),0);setF({...f,service_ids:ids,service_id:ids[0]||'',discount_percent:'',charged_amount:Number(subtotal.toFixed(2))})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
-        {f.vehicle_id&&!selectedVehicle?.category_id&&<div className="fieldHint">Este veículo ainda não possui categoria.</div>}
-        {f.vehicle_id&&selectedVehicle?.category_id&&availableServices.length===0&&<div className="fieldHint">Nenhum serviço cadastrado para {vehicleCategories.find(c=>c.id===selectedVehicle.category_id)?.name||'esta categoria'}.</div>}
-        <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
-        <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select>
-        <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));const subtotal=f.service_ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0);setF({...f,discount_percent:e.target.value,charged_amount:Number((subtotal*(1-desconto/100)).toFixed(2))})}}/>
-        <input type="number" min="0" step="0.01" placeholder="Valor cobrado" value={f.charged_amount} onChange={e=>setF({...f,charged_amount:e.target.value})}/>
-        <select value={f.payment_method_id} onChange={e=>setF({...f,payment_method_id:e.target.value})}><option value="">Forma de pagamento</option>{paymentMethods.filter(p=>p.active!==false).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        <input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
-        <input key={`files-${formKey}`} type="file" multiple accept="image/*" onChange={e=>setF({...f,files:e.target.files})}/>
-      </div>
-    </Panel>
-
-    <Panel title="Pesquisar histórico de serviços">
+    <Panel title="Pesquisar histórico de serviços realizados">
       <div className="filterGrid historyFilters"><SearchBox value={search} onChange={setSearch} placeholder="Cliente, placa, veículo, serviço ou funcionário"/><input className="historyDateFilter" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={dateFilter} onChange={e=>setDateFilter(maskDateBR(e.target.value))}/><button className="secondary historyClearBtn" onClick={()=>{setSearch('');setDateFilter('')}}><X size={16}/>Limpar</button></div>
     </Panel>
-
     <Panel title="Histórico de serviços realizados">
-      {filteredHistory.length===0?<p className="hint">Nenhum serviço encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Ações']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),statuses=[...new Set(g.rows.map(o=>o.status))];return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{canWrite&&statuses.length===1&&statuses[0]==='em_andamento'?<select value="em_andamento" onChange={e=>changeHistoryStatus(g,e.target.value)}><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select>:statuses.map(st=><Status key={st} value={st}/>)}</td><td><div className="actions">{g.rows.some(o=>o.status==='concluido')&&<button type="button" className="secondary" title="Enviar WhatsApp" onClick={()=>whatsapp(g)}><MessageCircle size={16}/></button>}{canDeleteHistory&&<button type="button" className="danger" title="Excluir do histórico" onClick={()=>deleteHistoryGroup(g)}><Trash2 size={16}/></button>}</div></td></tr>})}</Table>}
+      {filteredHistory.length===0?<p className="hint">Nenhum serviço realizado encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Arquivos']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),ids=new Set(g.rows.map(r=>r.id)),files=images.filter(i=>ids.has(i.service_order_id));return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{files.length?<div className="serviceTags">{files.map(file=><a key={file.id} href={file.image_url} target="_blank" rel="noreferrer">{file.file_name||'Abrir arquivo'}</a>)}</div>:'-'}</td></tr>})}</Table>}
     </Panel>
   </section>
 }
 
-function Appointments({appointments,clients,vehicles,services,vehicleCategories,canWrite,profile,insert,setAppointments,setOrders}){
-  const empty={client_id:'',vehicle_id:'',service_ids:[],scheduled_at:'',scheduled_date:'',scheduled_time:'',notes:'',status:'agendado'};
-  const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:''}),[formKey,setFormKey]=useState(0);
+function Appointments({appointments,appointmentFiles,clients,vehicles,services,vehicleCategories,employees,paymentMethods,canWrite,profile,insert,uploadImages,uploadAppointmentFiles,setAppointments,setAppointmentFiles,setOrders,setPayments,setImages}){
+  const empty={client_id:'',vehicle_id:'',service_ids:[],scheduled_at:'',scheduled_date:'',scheduled_time:'',employee_id:'',notes:'',status:'agendado',discount_percent:'',charged_amount:'',payment_method_id:'',files:null,appointment_group_id:''};
+  const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[filters,setFilters]=useState({date:'',client:'',vehicle:'',service:'',employee:''}),[formKey,setFormKey]=useState(0);
   const available=vehicles.filter(v=>!f.client_id||v.client_id===f.client_id);
   const selectedVehicle=vehicles.find(v=>v.id===f.vehicle_id);
   const availableServices=selectedVehicle?.category_id?services.filter(s=>s.category_id===selectedVehicle.category_id):[];
+  const currentFiles=edit&&f.appointment_group_id?appointmentFiles.filter(x=>x.appointment_group_id===f.appointment_group_id):[];
 
-  async function notifyAppointmentCompletion(serviceIds,total){
-    const v=vehicles.find(x=>x.id===f.vehicle_id),c=clients.find(x=>x.id===f.client_id);
-    if(!c?.email)return;
-    const doneServices=serviceIds.map(id=>{const s=services.find(x=>x.id===id);return {name:s?.name||'Serviço',price:Number(finalPrice(s)||0)}});
+  function serviceSubtotal(ids=f.service_ids){return ids.reduce((sum,id)=>sum+Number(finalPrice(services.find(s=>s.id===id))||0),0)}
+  function totalWithDiscount(ids=f.service_ids,discount=f.discount_percent){return Number((serviceSubtotal(ids)*(1-Math.min(100,Math.max(0,Number(discount)||0))/100)).toFixed(2))}
+  function clearForm(){setF({...empty});setEdit(null);setFormKey(k=>k+1)}
+
+  async function notifyAppointmentCompletion(rows,total){
+    if(!rows?.length)return;
+    const v=vehicles.find(x=>x.id===rows[0].vehicle_id),c=clients.find(x=>x.id===v?.client_id);
+    if(!c?.email&&!c?.phone)return;
+    const doneServices=rows.map(r=>({name:services.find(s=>s.id===r.service_id)?.name||'Serviço',price:Number(r.charged_amount||0)}));
     try{
-      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c.name,clientEmail:c.email,clientPhone:safePhone(c.phone),vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
-      if(error)console.warn('Erro ao enviar e-mail do agendamento:',error.message);
-      else if(data?.error)console.warn('Erro ao enviar e-mail do agendamento:',data.error);
-      else console.log('E-mail do agendamento concluído enviado com sucesso.');
+      const {data,error}=await supabase.functions.invoke('service-completed-notification',{body:{clientName:c?.name,clientEmail:c?.email||'',clientPhone:safePhone(c?.phone),vehicle:`${v?.brand||''} ${v?.model||''} - ${v?.plate||''}`,services:doneServices,total:Number(total||0)}});
+      if(error)console.warn('Erro ao enviar notificação do agendamento:',error.message);
+      else if(data?.error)console.warn('Erro ao enviar notificação do agendamento:',data.error);
     }catch(e){console.warn('Notificação automática do agendamento não configurada:',e.message)}
   }
 
-  async function moveCompletedAppointmentToHistory(serviceIds){
-    const atendimentoId=crypto.randomUUID();
-    const rows=[];
-    for(const service_id of serviceIds){
-      const service=services.find(s=>s.id===service_id);
-      const row=await insert('service_orders',{vehicle_id:f.vehicle_id,service_id,atendimento_id:atendimentoId,employee_id:null,performed_by:profile?.full_name,status:'concluido',notes:f.notes,charged_amount:Number(finalPrice(service)||0),completed_at:new Date().toISOString()},setOrders,'Concluiu agendamento e enviou ao histórico');
-      if(row)rows.push(row);
+  async function removeAppointmentRows(ids){
+    if(!ids?.length)return true;
+    const {error}=await supabase.from('appointments').delete().in('id',ids);
+    if(error){alert(error.message);return false}
+    const idSet=new Set(ids);setAppointments(x=>x.filter(r=>!idSet.has(r.id)));return true;
+  }
+
+  async function deleteAppointmentFile(file){
+    if(!confirm(`Excluir o arquivo ${file.file_name||''}?`))return;
+    if(file.storage_path){const {error:storageError}=await supabase.storage.from('service-images').remove([file.storage_path]);if(storageError){alert(storageError.message);return}}
+    const {error}=await supabase.from('appointment_files').delete().eq('id',file.id);if(error){alert(error.message);return}
+    setAppointmentFiles(x=>x.filter(r=>r.id!==file.id));
+  }
+
+  async function moveStoredFilesToHistory(groupId,orderId){
+    if(!groupId||!orderId)return;
+    const stored=appointmentFiles.filter(x=>x.appointment_group_id===groupId);
+    for(const file of stored){
+      const {data,error}=await supabase.from('service_images').insert({service_order_id:orderId,image_url:file.file_url,file_name:file.file_name}).select().single();
+      if(error){alert(error.message);continue}
+      if(data)setImages(x=>[data,...x]);
     }
-    return rows;
+    if(stored.length){
+      const {error}=await supabase.from('appointment_files').delete().eq('appointment_group_id',groupId);
+      if(!error)setAppointmentFiles(x=>x.filter(r=>r.appointment_group_id!==groupId));
+    }
+  }
+
+  async function completeAppointment(groupId,oldIds=[]){
+    const selectedServices=services.filter(s=>f.service_ids.includes(s.id));
+    const subtotal=selectedServices.reduce((sum,s)=>sum+Number(finalPrice(s)||0),0);
+    const total=Number(f.charged_amount!==''?f.charged_amount:totalWithDiscount());
+    const ratio=subtotal>0?total/subtotal:1;
+    const atendimentoId=crypto.randomUUID(),rows=[];
+    for(const sv of selectedServices){
+      const serviceAmount=Number((Number(finalPrice(sv)||0)*ratio).toFixed(2));
+      const row=await insert('service_orders',{vehicle_id:f.vehicle_id,service_id:sv.id,atendimento_id:atendimentoId,employee_id:f.employee_id||null,performed_by:profile?.full_name,status:'concluido',notes:f.notes,charged_amount:serviceAmount,completed_at:new Date().toISOString()},setOrders,'Concluiu agendamento e enviou ao histórico');
+      if(!row)return false;rows.push(row);
+    }
+    if(!rows.length)return false;
+    if(f.payment_method_id)await insert('payments',{service_order_id:rows[0].id,payment_method_id:f.payment_method_id,amount:total,paid_at:new Date().toISOString()},setPayments,'Registrou pagamento do agendamento');
+    await moveStoredFilesToHistory(groupId,rows[0].id);
+    await uploadImages(rows[0].id,f.files);
+    if(oldIds.length&&!await removeAppointmentRows(oldIds))return false;
+    await notifyAppointmentCompletion(rows,total);
+    return true;
   }
 
   async function save(){
@@ -387,44 +323,88 @@ function Appointments({appointments,clients,vehicles,services,vehicleCategories,
     const [dia,mes,ano]=f.scheduled_date.split('/');
     const localDate=new Date(Number(ano),Number(mes)-1,Number(dia),Number(f.scheduled_time.slice(0,2)),Number(f.scheduled_time.slice(3,5)));
     if(Number.isNaN(localDate.getTime())||localDate.getDate()!==Number(dia)||localDate.getMonth()!==Number(mes)-1||localDate.getFullYear()!==Number(ano))return alert('Data ou horário inválido.');
-    const when=localDate.toISOString();
-    if(f.status==='concluido'&&!confirm('Confirmar este agendamento como Concluído? Ele sairá da agenda, será enviado ao Histórico e as notificações serão disparadas ao cliente.'))return;
-    let shouldNotify=f.status==='concluido';
-    if(edit){
-      const ids=String(edit).split('|');
-      const oldRows=appointments.filter(a=>ids.includes(String(a.id)));
-      if(oldRows.some(a=>a.status==='concluido'))shouldNotify=false;
-      for(const id of ids)if(!await removeAppointmentNoConfirm(id))return;
+    const when=localDate.toISOString(),oldIds=edit?String(edit).split('|'):[],groupId=f.appointment_group_id||crypto.randomUUID();
+    if(f.status==='concluido'){
+      if(!confirm('Confirmar este agendamento como Concluído? Ele sairá da agenda, será enviado ao Histórico, o pagamento será registrado quando informado e as notificações serão disparadas ao cliente.'))return;
+      const ok=await completeAppointment(groupId,oldIds);if(ok)clearForm();return;
     }
-    for(const service_id of f.service_ids){const row=await insert('appointments',{client_id:f.client_id,vehicle_id:f.vehicle_id,service_id,scheduled_at:when,notes:f.notes,status:f.status},setAppointments,edit?'Editou agendamento':'Criou agendamento');if(!row)return}
-    if(shouldNotify){
-      const historyRows=await moveCompletedAppointmentToHistory(f.service_ids);
-      if(historyRows.length){const total=historyRows.reduce((sum,r)=>sum+Number(r.charged_amount||0),0);await notifyAppointmentCompletion(f.service_ids,total)}
+    const selectedServices=services.filter(s=>f.service_ids.includes(s.id));
+    const subtotal=selectedServices.reduce((sum,s)=>sum+Number(finalPrice(s)||0),0),total=Number(f.charged_amount!==''?f.charged_amount:totalWithDiscount()),ratio=subtotal>0?total/subtotal:1;
+    if(oldIds.length&&!await removeAppointmentRows(oldIds))return;
+    const created=[];
+    for(const sv of selectedServices){
+      const serviceAmount=Number((Number(finalPrice(sv)||0)*ratio).toFixed(2));
+      const row=await insert('appointments',{appointment_group_id:groupId,client_id:f.client_id,vehicle_id:f.vehicle_id,service_id:sv.id,employee_id:f.employee_id||null,scheduled_at:when,notes:f.notes,status:f.status,discount_percent:Number(f.discount_percent||0),charged_amount:serviceAmount,payment_method_id:f.payment_method_id||null},setAppointments,edit?'Editou agendamento':'Criou agendamento');
+      if(!row)return;created.push(row);
     }
-    setF({...empty});setEdit(null);setFormKey(k=>k+1);
+    await uploadAppointmentFiles(groupId,f.files);
+    clearForm();
   }
 
-  async function removeAppointmentNoConfirm(id){const {error}=await supabase.from('appointments').delete().eq('id',id);if(error){alert(error.message);return false}setAppointments(x=>x.filter(r=>r.id!==id));return true}
-  const groups=Object.values(appointments.filter(a=>a.status!=='concluido').reduce((acc,a)=>{const key=[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');if(!acc[key])acc[key]={...a,ids:[],service_ids:[]};acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc},{}));
-  const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' ');const filterIso=brDateToIso(filters.date);return (!filters.date||!filterIso||String(a.scheduled_at).slice(0,10)===filterIso)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))});
-  async function deleteGroup(a){if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;for(const id of a.ids)await removeAppointmentNoConfirm(id)}
-  function editGroup(a){const d=new Date(a.scheduled_at);setEdit(a.ids.join('|'));setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:[...a.service_ids],scheduled_at:a.scheduled_at,scheduled_date:d.toLocaleDateString('pt-BR'),scheduled_time:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false}),notes:a.notes||'',status:a.status});setFormKey(k=>k+1)}
+  const groups=Object.values(appointments.filter(a=>a.status!=='concluido').reduce((acc,a)=>{
+    const key=a.appointment_group_id||[a.client_id,a.vehicle_id,a.scheduled_at,a.notes||'',a.status].join('|');
+    if(!acc[key])acc[key]={...a,key,appointment_group_id:a.appointment_group_id||'',ids:[],service_ids:[]};
+    acc[key].ids.push(a.id);acc[key].service_ids.push(a.service_id);return acc;
+  },{}));
+  const filtered=groups.filter(a=>{const c=clients.find(x=>x.id===a.client_id),v=vehicles.find(x=>x.id===a.vehicle_id),serviceNames=a.service_ids.map(id=>services.find(s=>s.id===id)?.name||'').join(' '),employeeName=employees.find(e=>e.id===a.employee_id)?.name||'';const filterIso=brDateToIso(filters.date);return (!filters.date||!filterIso||String(a.scheduled_at).slice(0,10)===filterIso)&&(!filters.client||String(c?.name||'').toLowerCase().includes(filters.client.toLowerCase()))&&(!filters.vehicle||`${v?.plate||''} ${v?.brand||''} ${v?.model||''}`.toLowerCase().includes(filters.vehicle.toLowerCase()))&&(!filters.service||serviceNames.toLowerCase().includes(filters.service.toLowerCase()))&&(!filters.employee||employeeName.toLowerCase().includes(filters.employee.toLowerCase()))});
+
+  async function deleteGroup(a){
+    if(!confirm('Tem certeza que deseja excluir este agendamento?'))return;
+    const groupId=a.appointment_group_id;
+    if(groupId){
+      const files=appointmentFiles.filter(x=>x.appointment_group_id===groupId),paths=files.map(x=>x.storage_path).filter(Boolean);
+      if(paths.length)await supabase.storage.from('service-images').remove(paths);
+      const {error:fileError}=await supabase.from('appointment_files').delete().eq('appointment_group_id',groupId);if(fileError){alert(fileError.message);return}
+      setAppointmentFiles(x=>x.filter(r=>r.appointment_group_id!==groupId));
+    }
+    await removeAppointmentRows(a.ids);
+  }
+
+  function editGroup(a){
+    const d=new Date(a.scheduled_at),total=a.ids.reduce((sum,id)=>sum+Number(appointments.find(x=>x.id===id)?.charged_amount||0),0);
+    setEdit(a.ids.join('|'));
+    setF({client_id:a.client_id,vehicle_id:a.vehicle_id,service_ids:[...a.service_ids],scheduled_at:a.scheduled_at,scheduled_date:d.toLocaleDateString('pt-BR'),scheduled_time:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false}),employee_id:a.employee_id||'',notes:a.notes||'',status:a.status,discount_percent:a.discount_percent??'',charged_amount:total||'',payment_method_id:a.payment_method_id||'',files:null,appointment_group_id:a.appointment_group_id||''});
+    setFormKey(k=>k+1);
+  }
 
   return <section>
-    <Panel title="Agendamento de lavagens" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}>
-      <div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:'',service_ids:[]})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_ids:[]})}><option value="">Veículo</option>{available.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select><div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{availableServices.map(s=><label key={s.id} className="service-check"><input type="checkbox" checked={f.service_ids.includes(s.id)} onChange={e=>setF({...f,service_ids:e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id)})}/><span>{s.name} - {money(finalPrice(s))}</span></label>)}</div></details></div><div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,8);if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);setF({...f,scheduled_date:v})}}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div><select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select><input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div>
-      {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF({...empty});setFormKey(k=>k+1)}}>Cancelar edição</button>}
+    <Panel title="Agendamento e execução de serviços" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}>
+      <div className="formGrid">
+        <select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:'',service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Veículo</option>{available.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select>
+        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{availableServices.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);setF({...f,service_ids:ids,discount_percent:'',charged_amount:totalWithDiscount(ids,'')})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
+        {f.vehicle_id&&!selectedVehicle?.category_id&&<div className="fieldHint">Este veículo ainda não possui categoria.</div>}
+        {f.vehicle_id&&selectedVehicle?.category_id&&availableServices.length===0&&<div className="fieldHint">Nenhum serviço cadastrado para {vehicleCategories.find(c=>c.id===selectedVehicle.category_id)?.name||'esta categoria'}.</div>}
+        <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>setF({...f,scheduled_date:maskDateBR(e.target.value)})}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div>
+        <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select>
+        <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));setF({...f,discount_percent:e.target.value,charged_amount:totalWithDiscount(f.service_ids,desconto)})}}/>
+        <input type="number" min="0" step="0.01" placeholder="Valor cobrado" value={f.charged_amount} onChange={e=>setF({...f,charged_amount:e.target.value})}/>
+        <select value={f.payment_method_id} onChange={e=>setF({...f,payment_method_id:e.target.value})}><option value="">Forma de pagamento</option>{paymentMethods.filter(p=>p.active!==false).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
+        <input key={`appointment-files-${formKey}`} type="file" multiple onChange={e=>setF({...f,files:e.target.files})}/>
+      </div>
+      {edit&&<div><button className="linkBtn" onClick={clearForm}>Cancelar edição</button>{currentFiles.length>0&&<div className="serviceTags">{currentFiles.map(file=><span key={file.id}><a href={file.file_url} target="_blank" rel="noreferrer">{file.file_name}</a>{canWrite&&<button type="button" title="Excluir arquivo" onClick={()=>deleteAppointmentFile(file)}><X size={13}/></button>}</span>)}</div>}</div>}
     </Panel>
-    <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={filters.date} onChange={e=>setFilters({...filters,date:maskDateBR(e.target.value)})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:''})}><X size={16}/>Limpar</button></div></Panel>
-    <Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Status','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id);return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td><Status value={a.status}/></td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>editGroup(a)} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel>
+    <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={filters.date} onChange={e=>setFilters({...filters,date:maskDateBR(e.target.value)})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><input placeholder="Funcionário" value={filters.employee} onChange={e=>setFilters({...filters,employee:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:'',employee:''})}><X size={16}/>Limpar</button></div></Panel>
+    <Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Arquivos','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id),employee=employees.find(e=>e.id===a.employee_id),total=a.ids.reduce((sum,id)=>sum+Number(appointments.find(x=>x.id===id)?.charged_amount||0),0),files=a.appointment_group_id?appointmentFiles.filter(x=>x.appointment_group_id===a.appointment_group_id):[];return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td>{employee?.name||'-'}</td><td><b>{money(total)}</b></td><td><Status value={a.status}/></td><td>{files.length?<div className="serviceTags">{files.map(file=><a key={file.id} href={file.file_url} target="_blank" rel="noreferrer">{file.file_name}</a>)}</div>:'-'}</td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>editGroup(a)} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel>
   </section>
 }
 
 function Employees({employees,orders,vehicles,clients,services,canAdmin,insert,update,remove,setEmployees}){const empty={name:'',phone:'',position:'',commission_percent:'0',active:true};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);async function save(){if(!f.name)return alert('Informe o nome.');const p={...f,commission_percent:Number(f.commission_percent||0)};if(edit)await update('employees',edit,p,setEmployees,'Editou funcionário');else await insert('employees',p,setEmployees,'Cadastrou funcionário');setF(empty);setEdit(null)}const q=search.trim().toLowerCase();const filtered=employees.filter(e=>!q||[e.name,e.phone,e.position].some(x=>String(x||'').toLowerCase().includes(q)));const employee=employees.find(e=>e.id===detail);const history=orders.filter(o=>o.employee_id===detail).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));return <section><Panel title="Equipe e comissões" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar':'Cadastrar'}</button>}><div className="formGrid"><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input placeholder="Telefone" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/><input placeholder="Função" value={f.position} onChange={e=>setF({...f,position:e.target.value})}/><input type="number" placeholder="Comissão (%)" value={f.commission_percent} onChange={e=>setF({...f,commission_percent:e.target.value})}/></div><SearchBox value={search} onChange={setSearch} placeholder="Pesquisar funcionário por nome, função ou telefone"/><Table headers={['Nome','Função','Telefone','Comissão','Total gerado','Comissão estimada','Ações']}>{filtered.map(e=>{const eo=orders.filter(o=>o.employee_id===e.id&&o.status==='concluido'),total=eo.reduce((s,o)=>s+Number(o.charged_amount||0),0);return <tr key={e.id}><td>{e.name}</td><td>{e.position||'-'}</td><td>{e.phone||'-'}</td><td>{e.commission_percent||0}%</td><td>{money(total)}</td><td><b>{money(total*Number(e.commission_percent||0)/100)}</b></td><td><Actions onView={()=>setDetail(e.id)} onEdit={canAdmin?()=>{setEdit(e.id);setF({name:e.name||'',phone:e.phone||'',position:e.position||'',commission_percent:e.commission_percent||0,active:e.active!==false})}:null} onDelete={canAdmin?()=>remove('employees',e.id,setEmployees,'Excluiu funcionário'):null}/></td></tr>})}</Table></Panel>{employee&&<Modal title={`Funcionário: ${employee.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Função</b><span>{employee.position||'-'}</span></div><div><b>Telefone</b><span>{employee.phone||'-'}</span></div><div><b>Comissão</b><span>{employee.commission_percent||0}%</span></div><div><b>Serviços realizados</b><span>{history.length}</span></div></div><h4>Histórico de serviços realizados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado.</p>:<Table headers={['Data','Cliente','Veículo','Serviço','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),sv=services.find(x=>x.id===o.service_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'}</td><td>{sv?.name||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}</section>}
 
-function Cash({payments,paymentMethods,orders,cashClosings,canAdmin,insert,remove,setCashClosings,setPaymentMethods}){const [day,setDay]=useState(new Date().toISOString().slice(0,10)),[methodName,setMethodName]=useState('');const daily=payments.filter(p=>String(p.paid_at).slice(0,10)===day);const total=daily.reduce((s,p)=>s+Number(p.amount||0),0);const byMethod=paymentMethods.map(m=>({name:m.name,total:daily.filter(p=>p.payment_method_id===m.id).reduce((s,p)=>s+Number(p.amount||0),0)})).filter(x=>x.total>0);async function close(){if(!canAdmin)return;const existing=cashClosings.find(c=>c.closing_date===day);if(existing)return alert('Esse dia já possui fechamento registrado.');await insert('cash_closings',{closing_date:day,total_amount:total,details:byMethod,closed_at:new Date().toISOString()},setCashClosings,'Realizou fechamento de caixa')}
+function Cash({payments,paymentMethods,orders,cashClosings,canAdmin,insert,remove,setCashClosings,setPaymentMethods}){
+ const [day,setDay]=useState(new Date().toISOString().slice(0,10)),[methodName,setMethodName]=useState('');
+ const completedDayOrders=orders.filter(o=>o.status==='concluido'&&String(o.completed_at||o.created_at).slice(0,10)===day);
+ const serviceGroups=Object.values(completedDayOrders.reduce((acc,o)=>{const key=o.atendimento_id||o.id;if(!acc[key])acc[key]={key,rows:[]};acc[key].rows.push(o);return acc},{}));
+ const dailyEntries=serviceGroups.map(g=>{const ids=new Set(g.rows.map(o=>o.id));const payment=payments.find(p=>ids.has(p.service_order_id));const amount=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0);return {key:g.key,amount,payment_method_id:payment?.payment_method_id||null,paid_at:payment?.paid_at||g.rows[0]?.completed_at||g.rows[0]?.created_at,order_id:g.rows[0]?.id}});
+ const total=dailyEntries.reduce((s,e)=>s+Number(e.amount||0),0);
+ const byMethod=paymentMethods.map(m=>({name:m.name,total:dailyEntries.filter(e=>e.payment_method_id===m.id).reduce((s,e)=>s+Number(e.amount||0),0)})).filter(x=>x.total>0);
+ const withoutMethod=dailyEntries.filter(e=>!e.payment_method_id).reduce((s,e)=>s+Number(e.amount||0),0);
+ if(withoutMethod>0)byMethod.push({name:'Sem forma de pagamento',total:withoutMethod});
+ async function close(){if(!canAdmin)return;const existing=cashClosings.find(c=>c.closing_date===day);if(existing)return alert('Esse dia já possui fechamento registrado.');await insert('cash_closings',{closing_date:day,total_amount:total,details:byMethod,closed_at:new Date().toISOString()},setCashClosings,'Realizou fechamento de caixa')}
  async function addMethod(){if(!methodName.trim())return;await insert('payment_methods',{name:methodName.trim(),active:true},setPaymentMethods,'Cadastrou forma de pagamento');setMethodName('')}
- return <section>{canAdmin&&<Panel title="Formas de pagamento" action={<button className="primary" onClick={addMethod}><Plus size={17}/>Adicionar</button>}><div className="formGrid two"><input placeholder="Ex.: PIX, Dinheiro, Cartão" value={methodName} onChange={e=>setMethodName(e.target.value)}/></div><div className="methodChips">{paymentMethods.map(m=><span key={m.id}>{m.name}<button onClick={()=>remove('payment_methods',m.id,setPaymentMethods,'Excluiu forma de pagamento')}><X size={14}/></button></span>)}</div></Panel>}<Panel title="Fechamento de caixa" action={<div className="inline"><input className="dateInput" type="date" value={day} onChange={e=>setDay(e.target.value)}/>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa</button>}</div>}><div className="cashSummary"><div><span>Total do dia</span><strong>{money(total)}</strong></div>{byMethod.map(x=><div key={x.name}><span>{x.name}</span><strong>{money(x.total)}</strong></div>)}</div><Table headers={['Data/Hora','Forma','Valor','Ordem']}>{daily.map(p=><tr key={p.id}><td>{dt(p.paid_at)}</td><td>{paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'-'}</td><td>{money(p.amount)}</td><td>{orders.find(o=>o.id===p.service_order_id)?.id?.slice(0,8)||'-'}</td></tr>)}</Table></Panel><Panel title="Fechamentos anteriores"><Table headers={['Data','Fechado em','Total']}>{cashClosings.map(c=><tr key={c.id}><td>{dateOnly(c.closing_date)}</td><td>{dt(c.closed_at)}</td><td><b>{money(c.total_amount)}</b></td></tr>)}</Table></Panel></section>}
+ return <section>{canAdmin&&<Panel title="Formas de pagamento" action={<button className="primary" onClick={addMethod}><Plus size={17}/>Adicionar</button>}><div className="formGrid two"><input placeholder="Ex.: PIX, Dinheiro, Cartão" value={methodName} onChange={e=>setMethodName(e.target.value)}/></div><div className="methodChips">{paymentMethods.map(m=><span key={m.id}>{m.name}<button onClick={()=>remove('payment_methods',m.id,setPaymentMethods,'Excluiu forma de pagamento')}><X size={14}/></button></span>)}</div></Panel>}<Panel title="Fechamento de caixa" action={<div className="inline"><input className="dateInput" type="date" value={day} onChange={e=>setDay(e.target.value)}/>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa</button>}</div>}><div className="cashSummary"><div><span>Total do dia</span><strong>{money(total)}</strong></div>{byMethod.map(x=><div key={x.name}><span>{x.name}</span><strong>{money(x.total)}</strong></div>)}</div><Table headers={['Data/Hora','Forma','Valor','Ordem']}>{dailyEntries.map(e=><tr key={e.key}><td>{dt(e.paid_at)}</td><td>{paymentMethods.find(m=>m.id===e.payment_method_id)?.name||'Sem forma de pagamento'}</td><td>{money(e.amount)}</td><td>{e.order_id?.slice(0,8)||'-'}</td></tr>)}</Table></Panel><Panel title="Fechamentos anteriores"><Table headers={['Data','Fechado em','Total']}>{cashClosings.map(c=><tr key={c.id}><td>{dateOnly(c.closing_date)}</td><td>{dt(c.closed_at)}</td><td><b>{money(c.total_amount)}</b></td></tr>)}</Table></Panel></section>}
 
 function Reports({clients,vehicles,services,orders,employees,payments,paymentMethods}){const [from,setFrom]=useState(''),[to,setTo]=useState('');const filtered=orders.filter(o=>(!from||String(o.created_at).slice(0,10)>=from)&&(!to||String(o.created_at).slice(0,10)<=to));const rows=filtered.map(o=>{const v=vehicles.find(v=>v.id===o.vehicle_id),c=clients.find(c=>c.id===v?.client_id),s=services.find(s=>s.id===o.service_id),e=employees.find(e=>e.id===o.employee_id);return {Data:dt(o.completed_at||o.created_at),Cliente:c?.name||'',Placa:v?.plate||'',Veiculo:`${v?.brand||''} ${v?.model||''}`.trim(),Servico:s?.name||'',Funcionario:e?.name||o.performed_by||'',Valor:Number(o.charged_amount||finalPrice(s)),Status:o.status||''}});function pdf(){const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.text('Relatório de Serviços - Garagem GRAU CAR 096',14,16);doc.setFontSize(10);doc.text(`Período: ${from||'início'} a ${to||'hoje'} | Total: ${money(rows.reduce((s,r)=>s+r.Valor,0))}`,14,23);autoTable(doc,{startY:28,head:[['Data','Cliente','Placa','Veículo','Serviço','Funcionário','Valor','Status']],body:rows.map(r=>[r.Data,r.Cliente,r.Placa,r.Veiculo,r.Servico,r.Funcionario,money(r.Valor),r.Status])});doc.save('relatorio-servicos.pdf')}function excel(){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Serviços');const payRows=payments.map(p=>({Data:dt(p.paid_at),Forma:paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'',Valor:Number(p.amount||0)}));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(payRows),'Pagamentos');XLSX.writeFile(wb,'relatorio-estetica-veicular.xlsx')}
  return <section><Panel title="Relatórios PDF e Excel" action={<div className="reportBtns"><button className="secondary" onClick={pdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={excel}><FileDown size={17}/>Excel</button></div>}><div className="formGrid two"><label>De<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Até<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><div className="cashSummary"><div><span>Serviços no período</span><strong>{rows.length}</strong></div><div><span>Total de serviços</span><strong>{money(rows.reduce((s,r)=>s+r.Valor,0))}</strong></div></div><Table headers={['Data','Cliente','Placa','Serviço','Funcionário','Valor']}>{rows.map((r,i)=><tr key={i}><td>{r.Data}</td><td>{r.Cliente}</td><td>{r.Placa}</td><td>{r.Servico}</td><td>{r.Funcionario}</td><td>{money(r.Valor)}</td></tr>)}</Table></Panel></section>}
