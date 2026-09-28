@@ -34,6 +34,59 @@ const brDateToIso=value=>{
  return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 };
 
+
+function PublicSite(){
+ const whatsapp='https://wa.me/5596984361638';
+ return <div className="publicSite">
+  <header className="publicHeader">
+   <div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div>
+   <a className="publicSystemLink" href="/">Acesso ao sistema</a>
+  </header>
+
+  <main className="publicMain">
+   <section className="publicHero">
+    <div className="publicHeroText">
+     <span className="publicEyebrow">CUIDADO AUTOMOTIVO EM MACAPÁ - AP</span>
+     <h1>Seu veículo tratado com atenção em cada detalhe.</h1>
+     <p>A Garagem Grau Car oferece serviços de cuidado e estética automotiva, com atendimento organizado e acompanhamento dos serviços realizados.</p>
+     <div className="publicHeroActions">
+      <a className="publicPrimary" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={19}/>Falar pelo WhatsApp</a>
+      <a className="publicSecondary" href="tel:+5596984361638">Ligar agora</a>
+     </div>
+    </div>
+    <div className="publicHeroLogo"><img src={logoGraucar} alt="Logo Garagem Grau Car"/></div>
+   </section>
+
+   <section className="publicSection" id="sobre">
+    <div className="publicSectionTitle"><span>SOBRE NÓS</span><h2>Garagem Grau Car</h2></div>
+    <div className="publicAboutGrid">
+     <article><Car size={26}/><h3>Cuidado automotivo</h3><p>Serviços voltados à conservação, limpeza e apresentação do seu veículo.</p></article>
+     <article><CalendarDays size={26}/><h3>Atendimento organizado</h3><p>Agendamentos e acompanhamento dos serviços para facilitar o atendimento ao cliente.</p></article>
+     <article><ShieldCheck size={26}/><h3>Relacionamento com o cliente</h3><p>Comunicação direta para informações sobre o atendimento e a conclusão dos serviços.</p></article>
+    </div>
+   </section>
+
+   <section className="publicContact">
+    <div><span>CONTATO</span><h2>Fale com a Grau Car</h2><p>Macapá - Amapá, Brasil</p></div>
+    <div className="publicContactCard"><b>WhatsApp / Telefone</b><a href={whatsapp} target="_blank" rel="noreferrer">(96) 98436-1638</a></div>
+   </section>
+  </main>
+
+  <footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/privacidade">Política de Privacidade</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer>
+ </div>
+}
+
+function PrivacyPage(){
+ return <div className="publicSite"><header className="publicHeader"><div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div><a className="publicSystemLink" href="/empresa">Voltar ao site</a></header><main className="privacyMain"><span className="publicEyebrow">POLÍTICA DE PRIVACIDADE</span><h1>Privacidade e proteção de dados</h1><p>Esta página informa, de forma geral, como a Garagem Grau Car trata dados fornecidos por clientes durante o atendimento.</p><h2>Dados utilizados</h2><p>Podem ser utilizados dados de contato, informações do veículo, dados de agendamento e registros relacionados aos serviços solicitados ou realizados.</p><h2>Finalidade</h2><p>Os dados são utilizados para organizar atendimentos, manter registros dos serviços, entrar em contato com o cliente e enviar comunicações relacionadas ao atendimento.</p><h2>Compartilhamento e segurança</h2><p>Os dados devem ser tratados somente para as finalidades necessárias à operação do atendimento e às integrações utilizadas para prestar o serviço, com medidas razoáveis de segurança.</p><h2>Contato</h2><p>Para assuntos relacionados à privacidade ou aos seus dados, entre em contato com a Garagem Grau Car pelo telefone/WhatsApp <a href="https://wa.me/5596984361638" target="_blank" rel="noreferrer">(96) 98436-1638</a>.</p></main><footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/empresa">Página institucional</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer></div>
+}
+
+function Root(){
+ const path=window.location.pathname.replace(/\/+$/,'')||'/';
+ if(path==='/empresa')return <PublicSite/>;
+ if(path==='/privacidade')return <PrivacyPage/>;
+ return <App/>;
+}
+
 function App(){
  const [session,setSession]=useState(undefined),[profile,setProfile]=useState(undefined),[tab,setTab]=useState('dashboard');
  const [clients,setClients]=useState([]),[vehicles,setVehicles]=useState([]),[services,setServices]=useState([]),[vehicleCategories,setVehicleCategories]=useState([]),[orders,setOrders]=useState([]),[images,setImages]=useState([]),[logs,setLogs]=useState([]);
@@ -439,4 +492,4 @@ function UsersPanel({profiles,canAdmin,canSuperAdmin,profile,supabase,addLog,set
 }
 function Audit({logs}){return <section><Panel title="Histórico de ações"><Table headers={['Data/Hora','Usuário','Ação','Tipo']}>{logs.map(l=><tr key={l.id}><td>{dt(l.created_at)}</td><td>{l.user_name||'-'}</td><td>{l.action}</td><td>{l.entity_type||'-'}</td></tr>)}</Table></Panel></section>}
 
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<Root/>);
