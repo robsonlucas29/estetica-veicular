@@ -37,54 +37,122 @@ const brDateToIso=value=>{
 
 function PublicSite(){
  const whatsapp='https://wa.me/5596984361638';
- return <div className="publicSite">
+ const facebook='https://www.facebook.com/share/1L1YkAsB4C/?mibextid=wwXIfr';
+ const instagram='https://www.instagram.com/graucar096?stkn=MWg2MzMxeGVqOW44OQ==';
+ const [menuOpen,setMenuOpen]=useState(false);
+ const [highContrast,setHighContrast]=useState(false);
+ const goTo=id=>{setMenuOpen(false);setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),0)};
+ return <div className={`publicSite${highContrast?' highContrast':''}`}>
+  <style>{`
+   .publicTopActions{display:flex;align-items:center;gap:10px;position:relative}.publicMenuButton,.contrastButton{border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}.publicMenu{position:absolute;right:0;top:52px;z-index:50;min-width:250px;padding:10px;background:#111827;border:1px solid rgba(255,255,255,.16);border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.35)}.publicMenu a,.publicMenu button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:transparent;color:#fff;text-decoration:none;border-radius:9px;cursor:pointer;font:inherit}.publicMenu a:hover,.publicMenu button:hover{background:rgba(255,255,255,.1)}.partnerBox,.careerBox{border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px}.careerForm{display:grid;grid-template-columns:1fr 1fr;gap:12px}.careerForm input,.careerForm textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit}.careerForm textarea,.careerForm .full{grid-column:1/-1}.careerForm input::file-selector-button{margin-right:10px}.highContrast{background:#000!important;color:#fff!important}.highContrast .publicHeader,.highContrast .publicHero,.highContrast .publicContact,.highContrast article,.highContrast .publicContactCard,.highContrast .partnerBox,.highContrast .careerBox{background:#000!important;color:#fff!important;border-color:#fff!important}.highContrast a{color:#fff!important;text-decoration:underline}.highContrast .publicPrimary,.highContrast .publicSecondary,.highContrast .publicSystemLink,.highContrast button{background:#fff!important;color:#000!important;border-color:#fff!important}.publicPrimary,.publicSecondary,.publicSystemLink,.publicMenu a{text-decoration:none!important}.highContrast .publicPrimary,.highContrast .publicSecondary,.highContrast .publicSystemLink,.highContrast .publicMenu a{text-decoration:none!important}.highContrast input,.highContrast textarea{background:#000!important;color:#fff!important;border-color:#fff!important}@media(max-width:720px){.publicHeader{gap:12px}.publicTopActions{gap:6px}.publicMenuButton,.contrastButton{padding:9px 10px}.careerForm{grid-template-columns:1fr}.careerForm>*{grid-column:1!important}}
+  `}</style>
   <header className="publicHeader">
    <div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div>
-   <a className="publicSystemLink" href="/">Acesso ao sistema</a>
+   <div className="publicTopActions">
+    <button type="button" className="contrastButton" onClick={()=>setHighContrast(v=>!v)} aria-pressed={highContrast}>◐ Contraste</button>
+    <button type="button" className="publicMenuButton" onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen}>Menu ☰</button>
+    {menuOpen&&<div className="publicMenu">
+     <a href="/sistema">Acesso ao sistema</a>
+     <a href="/oportunidades" target="_blank" rel="noreferrer">Faça parte do nosso time</a>
+     <a href="/privacidade">Política de Privacidade</a>
+     <button type="button" onClick={()=>goTo('parceiros')}>Empresas Parceiras</button>
+    </div>}
+   </div>
   </header>
 
   <main className="publicMain">
    <section className="publicHero">
-    <div className="publicHeroText">
-     <span className="publicEyebrow">CUIDADO AUTOMOTIVO EM MACAPÁ - AP</span>
-     <h1>Seu veículo tratado com atenção em cada detalhe.</h1>
-     <p>A Garagem Grau Car oferece serviços de cuidado e estética automotiva, com atendimento organizado e acompanhamento dos serviços realizados.</p>
-     <div className="publicHeroActions">
-      <a className="publicPrimary" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={19}/>Falar pelo WhatsApp</a>
-      <a className="publicSecondary" href="tel:+5596984361638">Ligar agora</a>
-     </div>
-    </div>
+    <div className="publicHeroText"><span className="publicEyebrow">CUIDADO AUTOMOTIVO EM MACAPÁ - AP</span><h1>Seu veículo tratado com atenção em cada detalhe.</h1><p>A Garagem Grau Car oferece serviços de cuidado e estética automotiva, com atendimento organizado e acompanhamento dos serviços realizados.</p><div className="publicHeroActions"><a className="publicPrimary" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={19}/>Falar pelo WhatsApp</a><a className="publicSecondary" href="tel:+5596984361638">Ligar agora</a></div></div>
     <div className="publicHeroLogo"><img src={logoGraucar} alt="Logo Garagem Grau Car"/></div>
    </section>
 
-   <section className="publicSection" id="sobre">
-    <div className="publicSectionTitle"><span>SOBRE NÓS</span><h2>Garagem Grau Car</h2></div>
-    <div className="publicAboutGrid">
-     <article><Car size={26}/><h3>Cuidado automotivo</h3><p>Serviços voltados à conservação, limpeza e apresentação do seu veículo.</p></article>
-     <article><CalendarDays size={26}/><h3>Atendimento organizado</h3><p>Agendamentos e acompanhamento dos serviços para facilitar o atendimento ao cliente.</p></article>
-     <article><ShieldCheck size={26}/><h3>Relacionamento com o cliente</h3><p>Comunicação direta para informações sobre o atendimento e a conclusão dos serviços.</p></article>
+   <section className="publicSection" id="sobre"><div className="publicSectionTitle"><span>SOBRE NÓS</span><h2>Garagem Grau Car</h2></div><div className="publicAboutGrid"><article><Car size={26}/><h3>Cuidado automotivo</h3><p>Serviços voltados à conservação, limpeza e apresentação do seu veículo.</p></article><article><CalendarDays size={26}/><h3>Atendimento organizado</h3><p>Agendamentos e acompanhamento dos serviços para facilitar o atendimento ao cliente.</p></article><article><ShieldCheck size={26}/><h3>Relacionamento com o cliente</h3><p>Comunicação direta para informações sobre o atendimento e a conclusão dos serviços.</p></article></div></section>
+
+
+   <section style={{padding:'0 0 48px'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'end',gap:18,flexWrap:'wrap',marginBottom:18}}>
+     <div>
+      <span className="publicEyebrow">LOCALIZAÇÃO</span>
+      <h2 style={{margin:'8px 0'}}>Onde estamos</h2>
+      <p style={{margin:0}}>Avenida Coaracy Nunes, 907 B - Centro, Macapá - AP</p>
+     </div>
+     <a className="publicPrimary" href="https://www.google.com/maps/dir/?api=1&destination=Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP" target="_blank" rel="noreferrer" style={{textDecoration:'none'}}>📍 Como chegar</a>
+    </div>
+    <div style={{overflow:'hidden',borderRadius:18,border:'2px solid #ef4444',minHeight:420,boxShadow:'0 0 0 4px rgba(239,68,68,.12), 0 18px 45px rgba(0,0,0,.28)'}}>
+     <iframe title="Localização Garagem Grau Car" src="https://www.google.com/maps?q=Garagem+Grau+Car,+Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP&z=19&output=embed" width="100%" height="420" style={{border:0,display:'block'}} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"/>
     </div>
    </section>
 
-   <section className="publicContact">
-    <div><span>CONTATO</span><h2>Fale com a Grau Car</h2><p>Macapá - Amapá, Brasil</p></div>
-    <div className="publicContactCard"><b>WhatsApp / Telefone</b><a href={whatsapp} target="_blank" rel="noreferrer">(96) 98436-1638</a></div>
-   </section>
+   <section style={{padding:'0 0 52px'}}><div style={{marginBottom:18}}><span className="publicEyebrow">REDES SOCIAIS</span><h2 style={{margin:'8px 0'}}>Acompanhe a Grau Car</h2><p style={{margin:0}}>Siga nossos perfis oficiais no Facebook e Instagram.</p></div><div style={{display:'flex',gap:14,flexWrap:'wrap'}}><a href={facebook} target="_blank" rel="noreferrer" aria-label="Facebook da Garagem Grau Car" style={{textDecoration:'none',display:'inline-flex',alignItems:'center',gap:10,padding:'12px 18px',borderRadius:12,border:'1px solid rgba(255,255,255,.16)',textDecoration:'none',color:'inherit',fontWeight:700}}><span aria-hidden="true" style={{display:'grid',placeItems:'center',width:30,height:30,borderRadius:'50%',border:'1px solid currentColor',fontSize:20,fontFamily:'Arial',fontWeight:900}}>f</span>Facebook</a><a href={instagram} target="_blank" rel="noreferrer" aria-label="Instagram da Garagem Grau Car" style={{textDecoration:'none',display:'inline-flex',alignItems:'center',gap:10,padding:'12px 18px',borderRadius:12,border:'1px solid rgba(255,255,255,.16)',textDecoration:'none',color:'inherit',fontWeight:700}}><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>Instagram</a></div></section>
+
+   <section id="parceiros" style={{padding:'0 0 48px'}}><div style={{marginBottom:18}}><span className="publicEyebrow">PARCERIAS</span><h2 style={{margin:'8px 0'}}>Empresas Parceiras</h2></div><div className="partnerBox"><p style={{margin:0}}>Espaço reservado para apresentar as empresas parceiras da Garagem Grau Car.</p></div></section>
   </main>
 
+  <div vw="true" className="enabled"><div vw-access-button="true" className="active"></div><div vw-plugin-wrapper="true"><div className="vw-plugin-top-wrapper"></div></div></div>
+  <footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/privacidade">Política de Privacidade</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer>
+ </div>
+}
+
+
+function CareerPage(){
+ const [highContrast,setHighContrast]=useState(false);
+ const [application,setApplication]=useState({name:'',phone:'',email:'',area:'',experience:'',message:''});
+ const [resume,setResume]=useState(null);
+ const [sending,setSending]=useState(false);
+ const [applicationStatus,setApplicationStatus]=useState('');
+ async function submitApplication(e){
+  e.preventDefault();
+  const form=e.currentTarget;
+  if(!resume){setApplicationStatus('Anexe seu currículo em PDF ou documento.');return;}
+  if(resume.size>5*1024*1024){setApplicationStatus('O currículo deve ter no máximo 5 MB.');return;}
+  if(!supabase){setApplicationStatus('O envio está temporariamente indisponível.');return;}
+  setSending(true);setApplicationStatus('');
+  try{
+   const resumeBase64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=reject;reader.readAsDataURL(resume)});
+   const {error}=await supabase.functions.invoke('job-application',{body:{...application,resumeName:resume.name,resumeType:resume.type||'application/octet-stream',resumeBase64}});
+   if(error)throw error;
+   setApplicationStatus('Candidatura enviada por e-mail. Abrimos o WhatsApp para você confirmar o contato com a Grau Car.');
+   const msg=`Olá! Enviei uma candidatura pelo site da Garagem Grau Car.%0A%0ANome: ${encodeURIComponent(application.name)}%0AÁrea de interesse: ${encodeURIComponent(application.area)}%0ATelefone: ${encodeURIComponent(application.phone)}%0AE-mail: ${encodeURIComponent(application.email)}`;
+   window.open(`https://wa.me/5596984361638?text=${msg}`,'_blank','noopener,noreferrer');
+   setApplication({name:'',phone:'',email:'',area:'',experience:'',message:''});setResume(null);form.reset();
+  }catch(err){setApplicationStatus(`Não foi possível enviar a candidatura: ${err?.message||'tente novamente.'}`)}
+  finally{setSending(false)}
+ }
+ return <div className={`publicSite${highContrast?' highContrast':''}`}>
+  <style>{`
+   .careerPageMain{max-width:980px;margin:0 auto;padding:52px 24px 72px}.careerBox{border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px}.careerForm{display:grid;grid-template-columns:1fr 1fr;gap:12px}.careerForm input,.careerForm textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit}.careerForm textarea,.careerForm .full{grid-column:1/-1}.careerForm input::file-selector-button{margin-right:10px}.contrastButton{border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}.careerHeaderActions{display:flex;align-items:center;gap:10px}.highContrast{background:#000!important;color:#fff!important}.highContrast .publicHeader,.highContrast .careerBox{background:#000!important;color:#fff!important;border-color:#fff!important}.highContrast a{color:#fff!important;text-decoration:underline}.highContrast .publicPrimary,.highContrast .publicSecondary,.highContrast .publicSystemLink,.highContrast button{background:#fff!important;color:#000!important;border-color:#fff!important}.publicPrimary,.publicSecondary,.publicSystemLink,.publicMenu a{text-decoration:none!important}.highContrast .publicPrimary,.highContrast .publicSecondary,.highContrast .publicSystemLink,.highContrast .publicMenu a{text-decoration:none!important}.highContrast input,.highContrast textarea{background:#000!important;color:#fff!important;border-color:#fff!important}@media(max-width:720px){.careerForm{grid-template-columns:1fr}.careerForm>*{grid-column:1!important}.careerHeaderActions{gap:6px}.contrastButton{padding:9px 10px}}
+  `}</style>
+  <header className="publicHeader">
+   <div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div>
+   <div className="careerHeaderActions"><button type="button" className="contrastButton" onClick={()=>setHighContrast(v=>!v)} aria-pressed={highContrast}>◐ Contraste</button><a className="publicSystemLink" href="/">Voltar ao site</a></div>
+  </header>
+  <main className="careerPageMain">
+   <div style={{marginBottom:24}}><span className="publicEyebrow">OPORTUNIDADES</span><h1 style={{margin:'8px 0'}}>Faça parte do nosso time</h1><p>Preencha seus dados e anexe seu currículo para enviar sua candidatura à Garagem Grau Car.</p></div>
+   <div className="careerBox"><form className="careerForm" onSubmit={submitApplication}><input required placeholder="Nome completo" value={application.name} onChange={e=>setApplication({...application,name:e.target.value})}/><input required placeholder="Telefone / WhatsApp" value={application.phone} onChange={e=>setApplication({...application,phone:e.target.value})}/><input required type="email" placeholder="E-mail" value={application.email} onChange={e=>setApplication({...application,email:e.target.value})}/><input required placeholder="Área ou vaga de interesse" value={application.area} onChange={e=>setApplication({...application,area:e.target.value})}/><textarea rows="4" placeholder="Experiência profissional / principais qualificações" value={application.experience} onChange={e=>setApplication({...application,experience:e.target.value})}/><textarea rows="3" placeholder="Mensagem adicional (opcional)" value={application.message} onChange={e=>setApplication({...application,message:e.target.value})}/><label className="full"><b>Currículo</b><input required type="file" accept=".pdf,.doc,.docx" onChange={e=>setResume(e.target.files?.[0]||null)}/><small>PDF, DOC ou DOCX — até 5 MB.</small></label><button className="publicPrimary full" type="submit" disabled={sending}>{sending?'Enviando...':'Enviar candidatura'}</button>{applicationStatus&&<div className="full" role="status">{applicationStatus}</div>}</form></div>
+  </main>
+  <div vw="true" className="enabled"><div vw-access-button="true" className="active"></div><div vw-plugin-wrapper="true"><div className="vw-plugin-top-wrapper"></div></div></div>
   <footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/privacidade">Política de Privacidade</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer>
  </div>
 }
 
 function PrivacyPage(){
- return <div className="publicSite"><header className="publicHeader"><div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div><a className="publicSystemLink" href="/empresa">Voltar ao site</a></header><main className="privacyMain"><span className="publicEyebrow">POLÍTICA DE PRIVACIDADE</span><h1>Privacidade e proteção de dados</h1><p>Esta página informa, de forma geral, como a Garagem Grau Car trata dados fornecidos por clientes durante o atendimento.</p><h2>Dados utilizados</h2><p>Podem ser utilizados dados de contato, informações do veículo, dados de agendamento e registros relacionados aos serviços solicitados ou realizados.</p><h2>Finalidade</h2><p>Os dados são utilizados para organizar atendimentos, manter registros dos serviços, entrar em contato com o cliente e enviar comunicações relacionadas ao atendimento.</p><h2>Compartilhamento e segurança</h2><p>Os dados devem ser tratados somente para as finalidades necessárias à operação do atendimento e às integrações utilizadas para prestar o serviço, com medidas razoáveis de segurança.</p><h2>Contato</h2><p>Para assuntos relacionados à privacidade ou aos seus dados, entre em contato com a Garagem Grau Car pelo telefone/WhatsApp <a href="https://wa.me/5596984361638" target="_blank" rel="noreferrer">(96) 98436-1638</a>.</p></main><footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/empresa">Página institucional</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer></div>
+ return <div className="publicSite"><header className="publicHeader"><div className="publicBrand"><img src={logoGraucar} alt="Garagem Grau Car"/><div><b>GARAGEM GRAU CAR</b><span>A Casa do Grau Máximo</span></div></div><a className="publicSystemLink" href="/">Voltar ao site</a></header><main className="privacyMain"><span className="publicEyebrow">POLÍTICA DE PRIVACIDADE</span><h1>Privacidade e proteção de dados</h1><p>Esta página informa, de forma geral, como a Garagem Grau Car trata dados fornecidos por clientes durante o atendimento.</p><h2>Dados utilizados</h2><p>Podem ser utilizados dados de contato, informações do veículo, dados de agendamento e registros relacionados aos serviços solicitados ou realizados.</p><h2>Finalidade</h2><p>Os dados são utilizados para organizar atendimentos, manter registros dos serviços, entrar em contato com o cliente e enviar comunicações relacionadas ao atendimento.</p><h2>Compartilhamento e segurança</h2><p>Os dados devem ser tratados somente para as finalidades necessárias à operação do atendimento e às integrações utilizadas para prestar o serviço, com medidas razoáveis de segurança.</p><h2>Contato</h2><p>Para assuntos relacionados à privacidade ou aos seus dados, entre em contato com a Garagem Grau Car pelo telefone/WhatsApp <a href="https://wa.me/5596984361638" target="_blank" rel="noreferrer">(96) 98436-1638</a>.</p></main><footer className="publicFooter"><div><b>Garagem Grau Car</b><span>Macapá - AP</span></div><div><a href="/">Página institucional</a><span>© {new Date().getFullYear()} Garagem Grau Car</span></div></footer></div>
 }
 
 function Root(){
+ useEffect(()=>{
+  const init=()=>{if(window.VLibras&&!window.__grauCarVLibras){new window.VLibras.Widget('https://vlibras.gov.br/app');window.__grauCarVLibras=true;}};
+  const existing=document.querySelector('script[data-vlibras-widget]');
+  if(existing){init();existing.addEventListener('load',init,{once:true});return;}
+  const script=document.createElement('script');
+  script.src='https://vlibras.gov.br/app/vlibras-plugin.js';script.async=true;script.setAttribute('data-vlibras-widget','true');script.onload=init;document.body.appendChild(script);
+ },[]);
  const path=window.location.pathname.replace(/\/+$/,'')||'/';
- if(path==='/empresa')return <PublicSite/>;
+ if(path==='/'||path==='/empresa')return <PublicSite/>;
  if(path==='/privacidade')return <PrivacyPage/>;
- return <App/>;
+ if(path==='/oportunidades')return <CareerPage/>;
+ if(path==='/sistema')return <App/>;
+ return <PublicSite/>;
 }
 
 function App(){
@@ -175,10 +243,10 @@ function Splash({message}){return <div className="login"><div className="splashC
 function ConfigError(){return <div className="login"><div className="configCard"><div className="brand"><Car size={34}/><span>Garagem GRAU CAR 096</span></div><h2>Configuração do Supabase necessária</h2><p>O sistema não encontrou <b>VITE_SUPABASE_URL</b> e/ou <b>VITE_SUPABASE_ANON_KEY</b>.</p><p>Confira o arquivo <code>.env</code> na pasta principal do projeto e reinicie o comando <code>npm run dev</code>.</p><div className="error">Por segurança, o painel não abre sem autenticação.</div></div></div>}
 function AccessError({message,signOut,reload}){return <div className="login"><div className="configCard"><div className="brand"><ShieldCheck size={34}/><span>Conta não liberada</span></div><h2>Não foi possível carregar seu perfil</h2><p>{message}</p><div className="inline"><button className="primary" onClick={reload}>Tentar novamente</button><button className="secondary" onClick={signOut}>Sair</button></div></div></div>}
 
-function Login({login,setLogin,signIn,error}){return <div className="login"><form onSubmit={signIn}><div className="brand"><Car size={34}/><span>Garagem GRAU CAR 096</span></div><h2>Acesso ao sistema</h2><p className="loginIntro">Entre com seu usuário autorizado.</p><input type="email" autoComplete="username" required placeholder="E-mail" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/><input type="password" autoComplete="current-password" required placeholder="Senha" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/>{error&&<div className="error">{error}</div>}<button type="submit">Entrar</button><small>O acesso é obrigatório. Usuários e permissões são controlados pelo gerente.</small></form></div>}
+function Login({login,setLogin,signIn,error}){return <div className="login"><form onSubmit={signIn}><div className="brand"><Car size={34}/><span>Garagem GRAU CAR 096</span></div><h2>Acesso ao sistema</h2><p className="loginIntro">Entre com seu usuário autorizado.</p><input type="email" autoComplete="username" required placeholder="Usuário" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/><input type="password" autoComplete="current-password" required placeholder="Senha" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/>{error&&<div className="error">{error}</div>}<button type="submit">Entrar</button><button type="button" className="secondary" style={{width:'100%',justifyContent:'center',textAlign:'center'}} onClick={()=>{window.location.href='/'}}>Voltar ao site</button><small>O acesso é obrigatório. Usuários e permissões são controlados pelo gerente.</small></form></div>}
 function Sidebar({tab,setTab,role,signOut}){const all=[['dashboard',ClipboardList,'Dashboard'],['clientes',Users,'Clientes'],['veiculos',Car,'Veículos'],['servicos',Wrench,'Serviços'],['historico',ClipboardList,'Histórico'],['agendamentos',CalendarDays,'Agendamentos'],['equipe',UserRoundCog,'Equipe'],['caixa',Wallet,'Caixa'],['relatorios',FileDown,'Relatórios'],['usuarios',ShieldCheck,'Usuários'],['auditoria',ShieldCheck,'Auditoria']];const managerOnly=new Set(['servicos','equipe','caixa','relatorios','usuarios','auditoria']);const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));return <aside><div className="logo">
   <img src={logoGraucar} alt="Grau Car Garagem" className="grauCarLogo" />
-</div><nav>{items.map(([id,I,l])=><button className={tab===id?'active':''} onClick={()=>setTab(id)} key={id}><I size={19}/>{l}</button>)}</nav><div className="asideBottom"><span>Perfil: {role}</span><button onClick={signOut}><LogOut size={18}/>Sair</button></div></aside>}
+</div><nav>{items.map(([id,I,l])=><button className={tab===id?'active':''} onClick={()=>setTab(id)} key={id}><I size={19}/>{l}</button>)}</nav><div className="asideBottom"><span>Perfil: {role}</span><button type="button" onClick={()=>{window.location.href='/'}}><Car size={18}/>Voltar ao site</button><button onClick={signOut}><LogOut size={18}/>Sair</button></div></aside>}
 
 function Panel({title,action,children}){return <div className="panel"><div className="panelHead"><h3>{title}</h3>{action||null}</div>{children}</div>}
 function Table({headers=[],children}){return <div className="tableWrap"><table><thead><tr>{headers.map((h,i)=><th key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>}
