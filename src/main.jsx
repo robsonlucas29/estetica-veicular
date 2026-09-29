@@ -164,10 +164,10 @@ function App(){
  if(profileError||profile===null)return <AccessError message={profileError} signOut={signOut} reload={loadAll}/>;
  if(!profile)return <Splash message="Carregando sistema..."/>;
 
- const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=role==='administrador';
+ const role=profile.role,canSuperAdmin=role==='administrador',canAdmin=['administrador','gerente'].includes(role),canWrite=['administrador','gerente','administrativo'].includes(role),canDeleteHistory=['administrador','gerente'].includes(role);
  const common={clients,vehicles,services,vehicleCategories,orders,images,appointments,appointmentFiles,employees,paymentMethods,payments,cashClosings,profiles,canWrite,canAdmin,canSuperAdmin,canDeleteHistory,demo:false,profile,supabase,insert,update,remove,addLog,uploadImages,uploadAppointmentFiles,reload:loadAll};
  return <div className="app"><Sidebar tab={tab} setTab={setTab} role={role} signOut={signOut}/><main><header><div><h1>A Casa do Grau Máximo</h1><p>{profile.full_name||session.user.email} · <b>{role}</b></p></div></header>
-  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles} setVehicleCategories={setVehicleCategories}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setAppointmentFiles={setAppointmentFiles} setOrders={setOrders} setPayments={setPayments} setImages={setImages}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
+  {tab==='dashboard'&&<Dashboard {...common}/>} {tab==='clientes'&&<Clients {...common} setClients={setClients}/>} {tab==='veiculos'&&<Vehicles {...common} setVehicles={setVehicles} setVehicleCategories={setVehicleCategories}/>} {tab==='servicos'&&canAdmin&&<Services {...common} setServices={setServices}/>} {tab==='historico'&&<History {...common} setOrders={setOrders} setPayments={setPayments} setImages={setImages}/>} {tab==='agendamentos'&&<Appointments {...common} setAppointments={setAppointments} setAppointmentFiles={setAppointmentFiles} setOrders={setOrders} setPayments={setPayments} setImages={setImages}/>} {tab==='equipe'&&canAdmin&&<Employees {...common} setEmployees={setEmployees}/>} {tab==='caixa'&&canAdmin&&<Cash {...common} setPayments={setPayments} setCashClosings={setCashClosings} setPaymentMethods={setPaymentMethods}/>} {tab==='relatorios'&&canAdmin&&<Reports {...common}/>} {tab==='usuarios'&&canAdmin&&<UsersPanel {...common} setProfiles={setProfiles}/>} {tab==='auditoria'&&canAdmin&&<Audit logs={logs}/>} 
  </main></div>
 }
 
@@ -190,86 +190,87 @@ function Dashboard({clients,vehicles,services,orders,appointments}){const today=
 function Card({t,v}){return <div className="card"><span>{t}</span><strong>{v}</strong></div>}
 function Status({value}){return <span className={`status ${value}`}>{String(value||'-').replaceAll('_',' ')}</span>}
 
-function Clients({clients,vehicles,orders,services,employees,canWrite,insert,update,remove,setClients}){const empty={name:'',phone:'',email:'',document:''};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);async function save(){if(!f.name)return alert('Informe o nome do cliente.');if(edit)await update('clients',edit,{...f},setClients,'Editou cliente');else await insert('clients',f,setClients,'Cadastrou cliente');setF(empty);setEdit(null)}const q=search.trim().toLowerCase();const filtered=clients.filter(c=>!q||[c.name,c.phone,c.email,c.document].some(x=>String(x||'').toLowerCase().includes(q)));const client=clients.find(c=>c.id===detail);const clientVehicles=vehicles.filter(v=>v.client_id===detail);const history=orders.filter(o=>clientVehicles.some(v=>v.id===o.vehicle_id)).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));return <section><Panel title="Clientes" action={canWrite&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}><FormGrid f={f} setF={setF} fields={[["name","Nome completo"],["phone","Telefone"],["email","E-mail"],["document","CPF/CNPJ"]]}/>{edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}<SearchBox value={search} onChange={setSearch} placeholder="Pesquisar cliente por nome, telefone, e-mail ou documento"/><Table headers={['Nome','Telefone','E-mail','Documento','Ações']}>{filtered.map(r=><tr key={r.id}><td>{r.name}</td><td>{r.phone||'-'}</td><td>{r.email||'-'}</td><td>{r.document||'-'}</td><td><Actions onView={()=>setDetail(r.id)} onEdit={canWrite?()=>{setEdit(r.id);setF({name:r.name||'',phone:r.phone||'',email:r.email||'',document:r.document||''})}:null} onDelete={canWrite?()=>remove('clients',r.id,setClients,'Excluiu cliente'):null}/></td></tr>)}</Table></Panel>{client&&<Modal title={`Cliente: ${client.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Telefone</b><span>{client.phone||'-'}</span></div><div><b>E-mail</b><span>{client.email||'-'}</span></div><div><b>Documento</b><span>{client.document||'-'}</span></div><div><b>Veículos</b><span>{clientVehicles.map(v=>v.plate).join(', ')||'-'}</span></div></div><h4>Histórico de serviços solicitados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado para este cliente.</p>:<Table headers={['Data','Veículo','Serviço','Funcionário','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),sv=services.find(x=>x.id===o.service_id),e=employees.find(x=>x.id===o.employee_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td>{sv?.name||'-'}</td><td>{e?.name||o.performed_by||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}</section>}
+function Clients({clients,vehicles,orders,services,employees,canWrite,insert,update,remove,setClients}){
+ const empty={name:'',phone:'',email:'',document:''};
+ const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);
+ function closeEdit(){setEdit(null);setF(empty)}
+ async function save(){if(!f.name)return alert('Informe o nome do cliente.');if(edit)await update('clients',edit,{...f},setClients,'Editou cliente');else await insert('clients',f,setClients,'Cadastrou cliente');setF(empty);setEdit(null)}
+ const q=search.trim().toLowerCase();
+ const filtered=clients.filter(c=>!q||[c.name,c.phone,c.email,c.document].some(x=>String(x||'').toLowerCase().includes(q)));
+ const client=clients.find(c=>c.id===detail),clientVehicles=vehicles.filter(v=>v.client_id===detail);
+ const history=orders.filter(o=>clientVehicles.some(v=>v.id===o.vehicle_id)).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));
+ return <section>
+  <Panel title="Clientes" action={canWrite&&!edit&&<button className="primary" onClick={save}><Save size={17}/>Cadastrar</button>}>
+   {!edit&&<FormGrid f={f} setF={setF} fields={[["name","Nome completo"],["phone","Telefone"],["email","E-mail"],["document","CPF/CNPJ"]]}/>} 
+   <SearchBox value={search} onChange={setSearch} placeholder="Pesquisar cliente por nome, telefone, e-mail ou documento"/>
+   <Table headers={['Nome','Telefone','E-mail','Documento','Ações']}>{filtered.map(r=><tr key={r.id}><td>{r.name}</td><td>{r.phone||'-'}</td><td>{r.email||'-'}</td><td>{r.document||'-'}</td><td><Actions onView={()=>setDetail(r.id)} onEdit={canWrite?()=>{setEdit(r.id);setF({name:r.name||'',phone:r.phone||'',email:r.email||'',document:r.document||''})}:null} onDelete={canWrite?()=>remove('clients',r.id,setClients,'Excluiu cliente'):null}/></td></tr>)}</Table>
+  </Panel>
+  {edit&&<Modal title="Editar cliente" onClose={closeEdit}><FormGrid f={f} setF={setF} fields={[["name","Nome completo"],["phone","Telefone"],["email","E-mail"],["document","CPF/CNPJ"]]}/><div className="inline"><button className="primary" onClick={save}><Save size={17}/>Salvar alterações</button><button className="secondary" onClick={closeEdit}>Cancelar</button></div></Modal>}
+  {client&&<Modal title={`Cliente: ${client.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Telefone</b><span>{client.phone||'-'}</span></div><div><b>E-mail</b><span>{client.email||'-'}</span></div><div><b>Documento</b><span>{client.document||'-'}</span></div><div><b>Veículos</b><span>{clientVehicles.map(v=>v.plate).join(', ')||'-'}</span></div></div><h4>Histórico de serviços solicitados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado para este cliente.</p>:<Table headers={['Data','Veículo','Serviço','Funcionário','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),sv=services.find(x=>x.id===o.service_id),e=employees.find(x=>x.id===o.employee_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td>{sv?.name||'-'}</td><td>{e?.name||o.performed_by||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}
+ </section>
+}
 
 function SearchBox({value,onChange,placeholder}){return <div className="searchBox"><Search size={18}/><input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>{value&&<button type="button" onClick={()=>onChange('')}><X size={16}/></button>}</div>}
 
 function Vehicles({vehicles,clients,orders,services,vehicleCategories,images,canWrite,canAdmin,insert,update,remove,setVehicles,setVehicleCategories}){
  const empty={client_id:'',category_id:'',plate:'',brand:'',model:'',color:'',year:''};
  const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[detail,setDetail]=useState(null),[search,setSearch]=useState(''),[categoryName,setCategoryName]=useState('');
-
- async function save(){
-  if(!f.client_id||!f.plate||!f.category_id)return alert('Informe cliente, placa e categoria do veículo.');
-  if(edit)await update('vehicles',edit,f,setVehicles,'Editou veículo');
-  else await insert('vehicles',f,setVehicles,'Cadastrou veículo');
-  setF(empty);setEdit(null);
- }
-
- async function addCategory(){
-  const name=categoryName.trim().toUpperCase();
-  if(!name)return alert('Informe o nome da categoria.');
-  if(vehicleCategories.some(c=>String(c.name).toLowerCase()===name.toLowerCase()))return alert('Essa categoria já está cadastrada.');
-  const row=await insert('vehicle_categories',{name},setVehicleCategories,'Cadastrou categoria de veículo');
-  if(row)setCategoryName('');
- }
-
+ function closeEdit(){setEdit(null);setF(empty)}
+ async function save(){if(!f.client_id||!f.plate||!f.category_id)return alert('Informe cliente, placa e categoria do veículo.');if(edit)await update('vehicles',edit,f,setVehicles,'Editou veículo');else await insert('vehicles',f,setVehicles,'Cadastrou veículo');setF(empty);setEdit(null)}
+ async function addCategory(){const name=categoryName.trim().toUpperCase();if(!name)return alert('Informe o nome da categoria.');if(vehicleCategories.some(c=>String(c.name).toLowerCase()===name.toLowerCase()))return alert('Essa categoria já está cadastrada.');const row=await insert('vehicle_categories',{name},setVehicleCategories,'Cadastrou categoria de veículo');if(row)setCategoryName('')}
  const q=search.trim().toLowerCase();
- const filtered=vehicles.filter(v=>{
-  const c=clients.find(x=>x.id===v.client_id),cat=vehicleCategories.find(x=>x.id===v.category_id);
-  return !q||[v.plate,v.brand,v.model,v.color,v.year,c?.name,cat?.name].some(x=>String(x||'').toLowerCase().includes(q));
- });
+ const filtered=vehicles.filter(v=>{const c=clients.find(x=>x.id===v.client_id),cat=vehicleCategories.find(x=>x.id===v.category_id);return !q||[v.plate,v.brand,v.model,v.color,v.year,c?.name,cat?.name].some(x=>String(x||'').toLowerCase().includes(q))});
  const vehicle=vehicles.find(v=>v.id===detail);
-
+ const vehicleFields=<div className="formGrid"><select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value})}><option value="">Cliente</option>{clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select><select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>{['plate','brand','model','color','year'].map(k=><input key={k} placeholder={{plate:'Placa',brand:'Marca',model:'Modelo',color:'Cor',year:'Ano'}[k]} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>)}</div>;
  return <section>
-  {canAdmin&&<Panel title="Categorias de veículos" action={<button className="primary" onClick={addCategory}><Plus size={17}/>Cadastrar categoria</button>}>
-   <div className="categoryCreate"><input placeholder="Ex.: SUV, PICKUP, RET, SEDAN, MOTO..." value={categoryName} onChange={e=>setCategoryName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCategory()}}}/></div>
-   {vehicleCategories.length===0?<p className="hint">Cadastre pelo menos uma categoria antes de cadastrar veículos e serviços.</p>:<div className="categoryChips">{vehicleCategories.map(cat=><span key={cat.id}>{cat.name}<button type="button" title="Excluir categoria" onClick={()=>remove('vehicle_categories',cat.id,setVehicleCategories,'Excluiu categoria de veículo')}><X size={14}/></button></span>)}</div>}
-   <p className="hint">Uma categoria vinculada a veículos ou serviços não poderá ser excluída até que esses vínculos sejam alterados.</p>
-  </Panel>}
-
-  <Panel title="Veículos" action={canWrite&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}>
-   <div className="formGrid">
-    <select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value})}><option value="">Cliente</option>{clients.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>
-    <select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select>
-    {['plate','brand','model','color','year'].map(k=><input key={k} placeholder={{plate:'Placa',brand:'Marca',model:'Modelo',color:'Cor',year:'Ano'}[k]} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>)}
-   </div>
-   {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}
-   <SearchBox value={search} onChange={setSearch} placeholder="Pesquisar por placa, marca, modelo, categoria, ano ou cliente"/>
+  {canAdmin&&<Panel title="Categorias de veículos" action={<button className="primary" onClick={addCategory}><Plus size={17}/>Cadastrar categoria</button>}><div className="categoryCreate"><input placeholder="Ex.: SUV, PICKUP, RET, SEDAN, MOTO..." value={categoryName} onChange={e=>setCategoryName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCategory()}}}/></div>{vehicleCategories.length===0?<p className="hint">Cadastre pelo menos uma categoria antes de cadastrar veículos e serviços.</p>:<div className="categoryChips">{vehicleCategories.map(cat=><span key={cat.id}>{cat.name}<button type="button" title="Excluir categoria" onClick={()=>remove('vehicle_categories',cat.id,setVehicleCategories,'Excluiu categoria de veículo')}><X size={14}/></button></span>)}</div>}<p className="hint">Uma categoria vinculada a veículos ou serviços não poderá ser excluída até que esses vínculos sejam alterados.</p></Panel>}
+  <Panel title="Veículos" action={canWrite&&!edit&&<button className="primary" onClick={save}><Save size={17}/>Cadastrar</button>}>
+   {!edit&&vehicleFields}<SearchBox value={search} onChange={setSearch} placeholder="Pesquisar por placa, marca, modelo, categoria, ano ou cliente"/>
    <Table headers={['Placa','Marca/Modelo','Categoria','Cor','Ano','Cliente','Ações']}>{filtered.map(r=><tr key={r.id}><td><b>{r.plate}</b></td><td>{r.brand} {r.model}</td><td><b>{vehicleCategories.find(c=>c.id===r.category_id)?.name||'Sem categoria'}</b></td><td>{r.color||'-'}</td><td>{r.year||'-'}</td><td>{clients.find(c=>c.id===r.client_id)?.name||'-'}</td><td><Actions onView={()=>setDetail(r.id)} onEdit={canWrite?()=>{setEdit(r.id);setF({client_id:r.client_id||'',category_id:r.category_id||'',plate:r.plate||'',brand:r.brand||'',model:r.model||'',color:r.color||'',year:r.year||''})}:null} onDelete={canWrite?()=>remove('vehicles',r.id,setVehicles,'Excluiu veículo'):null}/></td></tr>)}</Table>
   </Panel>
-  {vehicle&&<VehicleDetail vehicle={vehicle} category={vehicleCategories.find(c=>c.id===vehicle.category_id)} client={clients.find(c=>c.id===vehicle.client_id)} orders={orders.filter(o=>o.vehicle_id===vehicle.id)} services={services} images={images} onClose={()=>setDetail(null)}/>}
+  {edit&&<Modal title="Editar veículo" onClose={closeEdit}>{vehicleFields}<div className="inline"><button className="primary" onClick={save}><Save size={17}/>Salvar alterações</button><button className="secondary" onClick={closeEdit}>Cancelar</button></div></Modal>}
+  {vehicle&&<VehicleDetail vehicle={vehicle} category={vehicleCategories.find(c=>c.id===vehicle.category_id)} client={clients.find(c=>c.id===vehicle.client_id)} orders={orders.filter(o=>o.vehicle_id===vehicle.id)} services={services} images={images} onClose={()=>setDetail(null)}/>} 
  </section>
 }
+
 function VehicleDetail({vehicle,category,client,orders,services,images,onClose}){return <Modal title={`Veículo ${vehicle.plate}`} onClose={onClose}><div className="detailGrid"><div><b>Cliente</b><span>{client?.name||'-'}</span></div><div><b>Veículo</b><span>{vehicle.brand} {vehicle.model}</span></div><div><b>Categoria</b><span>{category?.name||'Sem categoria'}</span></div><div><b>Cor/Ano</b><span>{vehicle.color||'-'} · {vehicle.year||'-'}</span></div></div><h4>Histórico de serviços</h4>{orders.length===0?<p className="hint">Nenhum serviço registrado.</p>:orders.map(o=>{const pics=images.filter(i=>i.service_order_id===o.id);return <div className="serviceDetail" key={o.id}><div><b>{services.find(s=>s.id===o.service_id)?.name||'Serviço'}</b><span>{dt(o.completed_at||o.created_at)} · {o.performed_by||'-'}</span><p>{o.notes||'Sem observações.'}</p></div>{pics.length>0&&<div className="gallery">{pics.map(i=>{const isImage=/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(i.file_name||'');return <a key={i.id} href={i.image_url} target="_blank" rel="noreferrer">{isImage?<img src={i.image_url} alt={i.file_name||'Imagem do serviço'}/>:<span className="fileLink">{i.file_name||'Abrir arquivo'}</span>}</a>})}</div>}</div>})}</Modal>}
 
 function Services({services,vehicleCategories,canAdmin,insert,update,remove,setServices}){
  const empty={name:'',category_id:'',price:'',discount_percent:'0',description:''};
  const [f,setF]=useState(empty),[edit,setEdit]=useState(null);
-
- async function save(){
-  if(!f.name||!f.category_id||f.price==='')return alert('Informe nome, categoria do veículo e preço.');
-  const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};
-  if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');
-  else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');
-  setF(empty);setEdit(null);
- }
-
- return <section><Panel title="Tipos de serviços" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar edição':'Cadastrar'}</button>}>
-  <div className="formGrid">
-   <input placeholder="Nome do serviço" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
-   <select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-   <input type="number" min="0" step="0.01" placeholder="Preço (R$)" value={f.price} onChange={e=>setF({...f,price:e.target.value})}/>
-   <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>setF({...f,discount_percent:e.target.value})}/>
-   <input placeholder="Descrição" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/>
-  </div>
-  {edit&&<button className="linkBtn" onClick={()=>{setEdit(null);setF(empty)}}>Cancelar edição</button>}
-  {vehicleCategories.length===0&&<p className="hint">Cadastre primeiro uma categoria na aba Veículos.</p>}
+ function closeEdit(){setEdit(null);setF(empty)}
+ async function save(){if(!f.name||!f.category_id||f.price==='')return alert('Informe nome, categoria do veículo e preço.');const p={...f,price:Number(f.price),discount_percent:Number(f.discount_percent||0)};if(edit)await update('service_types',edit,p,setServices,'Editou tipo de serviço');else await insert('service_types',p,setServices,'Cadastrou tipo de serviço');setF(empty);setEdit(null)}
+ const serviceFields=<div className="formGrid"><input placeholder="Nome do serviço" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><select value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Categoria do veículo</option>{vehicleCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input type="number" min="0" step="0.01" placeholder="Preço (R$)" value={f.price} onChange={e=>setF({...f,price:e.target.value})}/><input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>setF({...f,discount_percent:e.target.value})}/><input placeholder="Descrição" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></div>;
+ return <section><Panel title="Tipos de serviços" action={canAdmin&&!edit&&<button className="primary" onClick={save}><Save size={17}/>Cadastrar</button>}>
+  {!edit&&serviceFields}{vehicleCategories.length===0&&<p className="hint">Cadastre primeiro uma categoria na aba Veículos.</p>}
   <Table headers={['Serviço','Categoria','Preço','Desconto','Preço final','Ações']}>{services.map(r=><tr key={r.id}><td>{r.name}</td><td><b>{vehicleCategories.find(c=>c.id===r.category_id)?.name||'Sem categoria'}</b></td><td>{money(r.price)}</td><td>{r.discount_percent||0}%</td><td><b>{money(finalPrice(r))}</b></td><td>{canAdmin&&<Actions onEdit={()=>{setEdit(r.id);setF({name:r.name||'',category_id:r.category_id||'',price:r.price||'',discount_percent:r.discount_percent||0,description:r.description||''})}} onDelete={()=>remove('service_types',r.id,setServices,'Excluiu tipo de serviço')}/>}</td></tr>)}</Table>
- </Panel></section>
+ </Panel>{edit&&<Modal title="Editar serviço" onClose={closeEdit}>{serviceFields}<div className="inline"><button className="primary" onClick={save}><Save size={17}/>Salvar alterações</button><button className="secondary" onClick={closeEdit}>Cancelar</button></div></Modal>}</section>
 }
 
-function History({orders,vehicles,services,clients,employees,images}){
+function History({orders,vehicles,services,clients,employees,images,canDeleteHistory,setOrders,setPayments,setImages,addLog}){
   const [search,setSearch]=useState(''),[dateFilter,setDateFilter]=useState('');
+
+  async function deleteHistoryGroup(group){
+    if(!canDeleteHistory)return;
+    if(!confirm('Tem certeza que deseja excluir este atendimento do histórico? Esta ação não poderá ser desfeita.'))return;
+    const ids=group.rows.map(r=>r.id);
+
+    const {error:imgError}=await supabase.from('service_images').delete().in('service_order_id',ids);
+    if(imgError){alert(imgError.message);return;}
+
+    const {error:payError}=await supabase.from('payments').delete().in('service_order_id',ids);
+    if(payError){alert(payError.message);return;}
+
+    const {error}=await supabase.from('service_orders').delete().in('id',ids);
+    if(error){alert(error.message);return;}
+
+    const idSet=new Set(ids);
+    setOrders(current=>current.filter(r=>!idSet.has(r.id)));
+    setPayments(current=>current.filter(r=>!idSet.has(r.service_order_id)));
+    setImages(current=>current.filter(r=>!idSet.has(r.service_order_id)));
+    if(addLog)await addLog('Excluiu atendimento do histórico','service_orders',ids[0]||null);
+  }
+
   const historyGroups=Object.values(orders.filter(o=>o.status==='concluido').reduce((acc,o)=>{
     const key=o.atendimento_id||o.id;
     if(!acc[key])acc[key]={key,rows:[],created_at:o.completed_at||o.created_at};
@@ -288,12 +289,15 @@ function History({orders,vehicles,services,clients,employees,images}){
     return (!q||haystack.includes(q))&&(!dateFilter||!filterIso||String(g.created_at).slice(0,10)===filterIso);
   });
 
+  const headers=['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Arquivos'];
+  if(canDeleteHistory)headers.push('Ações');
+
   return <section>
     <Panel title="Pesquisar histórico de serviços realizados">
       <div className="filterGrid historyFilters"><SearchBox value={search} onChange={setSearch} placeholder="Cliente, placa, veículo, serviço ou funcionário"/><input className="historyDateFilter" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={dateFilter} onChange={e=>setDateFilter(maskDateBR(e.target.value))}/><button className="secondary historyClearBtn" onClick={()=>{setSearch('');setDateFilter('')}}><X size={16}/>Limpar</button></div>
     </Panel>
     <Panel title="Histórico de serviços realizados">
-      {filteredHistory.length===0?<p className="hint">Nenhum serviço realizado encontrado.</p>:<Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Arquivos']}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),ids=new Set(g.rows.map(r=>r.id)),files=images.filter(i=>ids.has(i.service_order_id));return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{files.length?<div className="serviceTags">{files.map(file=><a key={file.id} href={file.image_url} target="_blank" rel="noreferrer">{file.file_name||'Abrir arquivo'}</a>)}</div>:'-'}</td></tr>})}</Table>}
+      {filteredHistory.length===0?<p className="hint">Nenhum serviço realizado encontrado.</p>:<Table headers={headers}>{filteredHistory.map(g=>{const first=g.rows[0],v=vehicles.find(x=>x.id===first.vehicle_id),c=clients.find(x=>x.id===v?.client_id),total=g.rows.reduce((sum,o)=>sum+Number(o.charged_amount||0),0),employeeNames=[...new Set(g.rows.map(o=>employees.find(e=>e.id===o.employee_id)?.name||o.performed_by||'-'))].join(', '),ids=new Set(g.rows.map(r=>r.id)),files=images.filter(i=>ids.has(i.service_order_id));return <tr key={g.key}><td>{dt(g.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'} · {v?.brand||''} {v?.model||''}</td><td><div className="serviceTags">{g.rows.map(o=><span key={o.id}>{services.find(s=>s.id===o.service_id)?.name||'-'}</span>)}</div></td><td>{employeeNames}</td><td><b>{money(total)}</b></td><td>{files.length?<div className="serviceTags">{files.map(file=><a key={file.id} href={file.image_url} target="_blank" rel="noreferrer">{file.file_name||'Abrir arquivo'}</a>)}</div>:'-'}</td>{canDeleteHistory&&<td><button className="danger" title="Excluir do histórico" onClick={()=>deleteHistoryGroup(g)}><Trash2 size={16}/>Excluir</button></td>}</tr>})}</Table>}
     </Panel>
   </section>
 }
@@ -420,31 +424,47 @@ function Appointments({appointments,appointmentFiles,clients,vehicles,services,v
     setFormKey(k=>k+1);
   }
 
+  function appointmentFields(){return <div className="formGrid">
+    <select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:'',service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+    <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Veículo</option>{available.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select>
+    <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{availableServices.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);setF({...f,service_ids:ids,discount_percent:'',charged_amount:totalWithDiscount(ids,'')})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
+    {f.vehicle_id&&!selectedVehicle?.category_id&&<div className="fieldHint">Este veículo ainda não possui categoria.</div>}
+    {f.vehicle_id&&selectedVehicle?.category_id&&availableServices.length===0&&<div className="fieldHint">Nenhum serviço cadastrado para {vehicleCategories.find(c=>c.id===selectedVehicle.category_id)?.name||'esta categoria'}.</div>}
+    <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
+    <div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>setF({...f,scheduled_date:maskDateBR(e.target.value)})}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div>
+    <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select>
+    <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));setF({...f,discount_percent:e.target.value,charged_amount:totalWithDiscount(f.service_ids,desconto)})}}/>
+    <input type="number" min="0" step="0.01" placeholder="Valor cobrado" value={f.charged_amount} onChange={e=>setF({...f,charged_amount:e.target.value})}/>
+    <select value={f.payment_method_id} onChange={e=>setF({...f,payment_method_id:e.target.value})}><option value="">Forma de pagamento</option>{paymentMethods.filter(p=>p.active!==false).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+    <input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
+    <input key={`appointment-files-${formKey}`} type="file" multiple onChange={e=>setF({...f,files:e.target.files})}/>
+  </div>}
+
   return <section>
-    <Panel title="Agendamento e execução de serviços" action={canWrite&&<button className="primary" onClick={save}><CalendarDays size={17}/>{edit?'Salvar':'Agendar'}</button>}>
-      <div className="formGrid">
-        <select value={f.client_id} onChange={e=>setF({...f,client_id:e.target.value,vehicle_id:'',service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <select value={f.vehicle_id} onChange={e=>setF({...f,vehicle_id:e.target.value,service_ids:[],discount_percent:'',charged_amount:''})}><option value="">Veículo</option>{available.map(v=>{const cat=vehicleCategories.find(c=>c.id===v.category_id);return <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}{cat?` · ${cat.name}`:' · SEM CATEGORIA'}</option>})}</select>
-        <div className="multi-services" key={formKey}><details className="services-dropdown"><summary>{f.service_ids.length?`${f.service_ids.length} serviço(s) selecionado(s)`:'Serviços'}</summary><div className="services-dropdown-list">{availableServices.map(s=>{const selected=f.service_ids.includes(s.id);return <label key={s.id} className="service-check"><input type="checkbox" checked={selected} onChange={e=>{const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);setF({...f,service_ids:ids,discount_percent:'',charged_amount:totalWithDiscount(ids,'')})}}/><span>{s.name} - {money(finalPrice(s))}</span></label>})}</div></details></div>
-        {f.vehicle_id&&!selectedVehicle?.category_id&&<div className="fieldHint">Este veículo ainda não possui categoria.</div>}
-        {f.vehicle_id&&selectedVehicle?.category_id&&availableServices.length===0&&<div className="fieldHint">Nenhum serviço cadastrado para {vehicleCategories.find(c=>c.id===selectedVehicle.category_id)?.name||'esta categoria'}.</div>}
-        <select value={f.employee_id} onChange={e=>setF({...f,employee_id:e.target.value})}><option value="">Funcionário responsável</option>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select>
-        <div className="appointment-datetime"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={f.scheduled_date} onChange={e=>setF({...f,scheduled_date:maskDateBR(e.target.value)})}/><input type="text" inputMode="numeric" placeholder="HH:MM" maxLength={5} value={f.scheduled_time} onChange={e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+':'+v.slice(2);setF({...f,scheduled_time:v})}} onBlur={e=>{if(e.target.value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(e.target.value)){alert('Informe um horário válido no formato 24 horas. Exemplo: 15:30');setF({...f,scheduled_time:''})}}}/></div>
-        <select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select>
-        <input type="number" min="0" max="100" step="1" placeholder="Desconto (%)" value={f.discount_percent} onChange={e=>{const desconto=Math.min(100,Math.max(0,Number(e.target.value)||0));setF({...f,discount_percent:e.target.value,charged_amount:totalWithDiscount(f.service_ids,desconto)})}}/>
-        <input type="number" min="0" step="0.01" placeholder="Valor cobrado" value={f.charged_amount} onChange={e=>setF({...f,charged_amount:e.target.value})}/>
-        <select value={f.payment_method_id} onChange={e=>setF({...f,payment_method_id:e.target.value})}><option value="">Forma de pagamento</option>{paymentMethods.filter(p=>p.active!==false).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        <input placeholder="Observações" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
-        <input key={`appointment-files-${formKey}`} type="file" multiple onChange={e=>setF({...f,files:e.target.files})}/>
-      </div>
-      {edit&&<div><button className="linkBtn" onClick={clearForm}>Cancelar edição</button>{currentFiles.length>0&&<div className="serviceTags">{currentFiles.map(file=><span key={file.id}><a href={file.file_url} target="_blank" rel="noreferrer">{file.file_name}</a>{canWrite&&<button type="button" title="Excluir arquivo" onClick={()=>deleteAppointmentFile(file)}><X size={13}/></button>}</span>)}</div>}</div>}
+    <Panel title="Agendamento e execução de serviços" action={canWrite&&!edit&&<button className="primary" onClick={save}><CalendarDays size={17}/>Agendar</button>}>
+      {!edit&&appointmentFields()}
     </Panel>
+    {edit&&<Modal title="Editar agendamento" onClose={clearForm}>{appointmentFields()}{currentFiles.length>0&&<div className="serviceTags">{currentFiles.map(file=><span key={file.id}><a href={file.file_url} target="_blank" rel="noreferrer">{file.file_name}</a>{canWrite&&<button type="button" title="Excluir arquivo" onClick={()=>deleteAppointmentFile(file)}><X size={13}/></button>}</span>)}</div>}<div className="inline"><button className="primary" onClick={save}><Save size={17}/>Salvar alterações</button><button className="secondary" onClick={clearForm}>Cancelar</button></div></Modal>}
     <Panel title="Pesquisar agenda"><div className="filterGrid"><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={filters.date} onChange={e=>setFilters({...filters,date:maskDateBR(e.target.value)})}/><input placeholder="Cliente" value={filters.client} onChange={e=>setFilters({...filters,client:e.target.value})}/><input placeholder="Veículo / placa" value={filters.vehicle} onChange={e=>setFilters({...filters,vehicle:e.target.value})}/><input placeholder="Serviço" value={filters.service} onChange={e=>setFilters({...filters,service:e.target.value})}/><input placeholder="Funcionário" value={filters.employee} onChange={e=>setFilters({...filters,employee:e.target.value})}/><button className="secondary" onClick={()=>setFilters({date:'',client:'',vehicle:'',service:'',employee:''})}><X size={16}/>Limpar</button></div></Panel>
     <Panel title="Agenda"><Table headers={['Data/Hora','Cliente','Veículo','Serviços','Funcionário','Valor','Status','Arquivos','Observação','Ações']}>{filtered.map(a=>{const v=vehicles.find(x=>x.id===a.vehicle_id),employee=employees.find(e=>e.id===a.employee_id),total=a.ids.reduce((sum,id)=>sum+Number(appointments.find(x=>x.id===id)?.charged_amount||0),0),files=a.appointment_group_id?appointmentFiles.filter(x=>x.appointment_group_id===a.appointment_group_id):[];return <tr key={a.ids.join('-')}><td>{dt(a.scheduled_at)}</td><td>{clients.find(c=>c.id===a.client_id)?.name||'-'}</td><td>{v?.plate||'-'}</td><td><div className="serviceTags">{a.service_ids.map(id=><span key={id}>{services.find(s=>s.id===id)?.name||'-'}</span>)}</div></td><td>{employee?.name||'-'}</td><td><b>{money(total)}</b></td><td><Status value={a.status}/></td><td>{files.length?<div className="serviceTags">{files.map(file=><a key={file.id} href={file.file_url} target="_blank" rel="noreferrer">{file.file_name}</a>)}</div>:'-'}</td><td>{a.notes||'-'}</td><td>{canWrite&&<Actions onEdit={()=>editGroup(a)} onDelete={()=>deleteGroup(a)}/>}</td></tr>})}</Table></Panel>
   </section>
 }
 
-function Employees({employees,orders,vehicles,clients,services,canAdmin,insert,update,remove,setEmployees}){const empty={name:'',phone:'',position:'',commission_percent:'0',active:true};const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);async function save(){if(!f.name)return alert('Informe o nome.');const p={...f,commission_percent:Number(f.commission_percent||0)};if(edit)await update('employees',edit,p,setEmployees,'Editou funcionário');else await insert('employees',p,setEmployees,'Cadastrou funcionário');setF(empty);setEdit(null)}const q=search.trim().toLowerCase();const filtered=employees.filter(e=>!q||[e.name,e.phone,e.position].some(x=>String(x||'').toLowerCase().includes(q)));const employee=employees.find(e=>e.id===detail);const history=orders.filter(o=>o.employee_id===detail).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));return <section><Panel title="Equipe e comissões" action={canAdmin&&<button className="primary" onClick={save}><Save size={17}/>{edit?'Salvar':'Cadastrar'}</button>}><div className="formGrid"><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input placeholder="Telefone" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/><input placeholder="Função" value={f.position} onChange={e=>setF({...f,position:e.target.value})}/><input type="number" placeholder="Comissão (%)" value={f.commission_percent} onChange={e=>setF({...f,commission_percent:e.target.value})}/></div><SearchBox value={search} onChange={setSearch} placeholder="Pesquisar funcionário por nome, função ou telefone"/><Table headers={['Nome','Função','Telefone','Comissão','Total gerado','Comissão estimada','Ações']}>{filtered.map(e=>{const eo=orders.filter(o=>o.employee_id===e.id&&o.status==='concluido'),total=eo.reduce((s,o)=>s+Number(o.charged_amount||0),0);return <tr key={e.id}><td>{e.name}</td><td>{e.position||'-'}</td><td>{e.phone||'-'}</td><td>{e.commission_percent||0}%</td><td>{money(total)}</td><td><b>{money(total*Number(e.commission_percent||0)/100)}</b></td><td><Actions onView={()=>setDetail(e.id)} onEdit={canAdmin?()=>{setEdit(e.id);setF({name:e.name||'',phone:e.phone||'',position:e.position||'',commission_percent:e.commission_percent||0,active:e.active!==false})}:null} onDelete={canAdmin?()=>remove('employees',e.id,setEmployees,'Excluiu funcionário'):null}/></td></tr>})}</Table></Panel>{employee&&<Modal title={`Funcionário: ${employee.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Função</b><span>{employee.position||'-'}</span></div><div><b>Telefone</b><span>{employee.phone||'-'}</span></div><div><b>Comissão</b><span>{employee.commission_percent||0}%</span></div><div><b>Serviços realizados</b><span>{history.length}</span></div></div><h4>Histórico de serviços realizados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado.</p>:<Table headers={['Data','Cliente','Veículo','Serviço','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),sv=services.find(x=>x.id===o.service_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'}</td><td>{sv?.name||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}</section>}
+function Employees({employees,orders,vehicles,clients,services,canAdmin,insert,update,remove,setEmployees}){
+ const empty={name:'',phone:'',position:'',commission_percent:'0',active:true};
+ const [f,setF]=useState(empty),[edit,setEdit]=useState(null),[search,setSearch]=useState(''),[detail,setDetail]=useState(null);
+ function closeEdit(){setEdit(null);setF(empty)}
+ async function save(){if(!f.name)return alert('Informe o nome.');const p={...f,commission_percent:Number(f.commission_percent||0)};if(edit)await update('employees',edit,p,setEmployees,'Editou funcionário');else await insert('employees',p,setEmployees,'Cadastrou funcionário');setF(empty);setEdit(null)}
+ const q=search.trim().toLowerCase(),filtered=employees.filter(e=>!q||[e.name,e.phone,e.position].some(x=>String(x||'').toLowerCase().includes(q))),employee=employees.find(e=>e.id===detail),history=orders.filter(o=>o.employee_id===detail).sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));
+ const employeeFields=<div className="formGrid"><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input placeholder="Telefone" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/><input placeholder="Função" value={f.position} onChange={e=>setF({...f,position:e.target.value})}/><input type="number" placeholder="Comissão (%)" value={f.commission_percent} onChange={e=>setF({...f,commission_percent:e.target.value})}/></div>;
+ return <section><Panel title="Equipe e comissões" action={canAdmin&&!edit&&<button className="primary" onClick={save}><Save size={17}/>Cadastrar</button>}>
+  {!edit&&employeeFields}<SearchBox value={search} onChange={setSearch} placeholder="Pesquisar funcionário por nome, função ou telefone"/>
+  <Table headers={['Nome','Função','Telefone','Comissão','Total gerado','Comissão estimada','Ações']}>{filtered.map(e=>{const eo=orders.filter(o=>o.employee_id===e.id&&o.status==='concluido'),total=eo.reduce((s,o)=>s+Number(o.charged_amount||0),0);return <tr key={e.id}><td>{e.name}</td><td>{e.position||'-'}</td><td>{e.phone||'-'}</td><td>{e.commission_percent||0}%</td><td>{money(total)}</td><td><b>{money(total*Number(e.commission_percent||0)/100)}</b></td><td><Actions onView={()=>setDetail(e.id)} onEdit={canAdmin?()=>{setEdit(e.id);setF({name:e.name||'',phone:e.phone||'',position:e.position||'',commission_percent:e.commission_percent||0,active:e.active!==false})}:null} onDelete={canAdmin?()=>remove('employees',e.id,setEmployees,'Excluiu funcionário'):null}/></td></tr>})}</Table>
+ </Panel>
+ {edit&&<Modal title="Editar funcionário" onClose={closeEdit}>{employeeFields}<div className="inline"><button className="primary" onClick={save}><Save size={17}/>Salvar alterações</button><button className="secondary" onClick={closeEdit}>Cancelar</button></div></Modal>}
+ {employee&&<Modal title={`Funcionário: ${employee.name}`} onClose={()=>setDetail(null)}><div className="detailGrid"><div><b>Função</b><span>{employee.position||'-'}</span></div><div><b>Telefone</b><span>{employee.phone||'-'}</span></div><div><b>Comissão</b><span>{employee.commission_percent||0}%</span></div><div><b>Serviços realizados</b><span>{history.length}</span></div></div><h4>Histórico de serviços realizados</h4>{history.length===0?<p className="hint">Nenhum serviço registrado.</p>:<Table headers={['Data','Cliente','Veículo','Serviço','Valor','Status']}>{history.map(o=>{const v=vehicles.find(x=>x.id===o.vehicle_id),c=clients.find(x=>x.id===v?.client_id),sv=services.find(x=>x.id===o.service_id);return <tr key={o.id}><td>{dt(o.completed_at||o.created_at)}</td><td>{c?.name||'-'}</td><td>{v?.plate||'-'}</td><td>{sv?.name||'-'}</td><td>{money(o.charged_amount||finalPrice(sv))}</td><td><Status value={o.status}/></td></tr>})}</Table>}</Modal>}
+ </section>
+}
 
 function Cash({payments,paymentMethods,orders,cashClosings,canAdmin,insert,remove,setCashClosings,setPaymentMethods}){
  const [day,setDay]=useState(new Date().toISOString().slice(0,10)),[methodName,setMethodName]=useState('');
