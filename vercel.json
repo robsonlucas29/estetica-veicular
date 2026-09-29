@@ -1,6 +1,8 @@
 {
   "rewrites": [
-    { "source": "/empresa", "destination": "/" },
-    { "source": "/privacidade", "destination": "/" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
