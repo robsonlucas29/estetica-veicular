@@ -32,6 +32,48 @@ const finalPrice=s=>
 
 const safePhone=p=>String(p||'').replace(/\D/g,'');
 
+// Máscara brasileira de telefone: (DD) 99999-9999 ou (DD) 9999-9999
+const maskPhoneBR=value=>{
+ const n=String(value||'').replace(/\D/g,'').slice(0,11);
+
+ if(!n)return '';
+ if(n.length<=2)return `(${n}`;
+
+ const ddd=n.slice(0,2);
+ const rest=n.slice(2);
+
+ if(n.length<=10){
+  if(rest.length<=4)return `(${ddd}) ${rest}`;
+  return `(${ddd}) ${rest.slice(0,4)}-${rest.slice(4)}`;
+ }
+
+ if(rest.length<=5)return `(${ddd}) ${rest}`;
+ return `(${ddd}) ${rest.slice(0,5)}-${rest.slice(5)}`;
+};
+
+// Máscara automática para CPF (11 dígitos) e CNPJ (14 dígitos)
+const maskCpfCnpj=value=>{
+ const n=String(value||'').replace(/\D/g,'').slice(0,14);
+
+ if(!n)return '';
+
+ if(n.length<=11){
+  return n
+   .replace(/^(\d{3})(\d)/,'$1.$2')
+   .replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3')
+   .replace(/\.(\d{3})(\d)/,'.$1-$2');
+ }
+
+ return n
+  .replace(/^(\d{2})(\d)/,'$1.$2')
+  .replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
+  .replace(/\.(\d{3})(\d)/,'.$1/$2')
+  .replace(/(\d{4})(\d)/,'$1-$2');
+};
+
+const validEmail=value=>
+ /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value||'').trim());
+
 const maskDateBR=value=>{
  const n=String(value||'').replace(/\D/g,'').slice(0,8);
 
@@ -2373,11 +2415,14 @@ function Sidebar({
   'auditoria'
  ]);
 
- const items=all.filter(
-  ([id])=>
-   ['administrador','gerente'].includes(role)||
-   !managerOnly.has(id)
- );
+ const items=all.filter(([id])=>{
+  if(['administrador','gerente'].includes(role))return true;
+
+  // Administrativo vê Usuários somente para cadastrar novos usuários.
+  if(role==='administrativo'&&id==='usuarios')return true;
+
+  return !managerOnly.has(id);
+ });
 
  return <aside>
 
@@ -2638,7 +2683,8 @@ function Dashboard({
  vehicles,
  services,
  orders,
- appointments
+ appointments,
+ profile
 }){
 
  const today=
@@ -2699,10 +2745,12 @@ function Dashboard({
     v={todayOrders.length}
    />
 
-   <Card
-    t="Faturamento registrado"
-    v={money(revenue)}
-   />
+   {profile?.role!=='administrativo'&&
+    <Card
+     t="Faturamento registrado"
+     v={money(revenue)}
+    />
+   }
 
   </div>
 
@@ -2780,6 +2828,7 @@ function Clients({
  services,
  employees,
  canWrite,
+ canAdmin,
  insert,
  update,
  remove,
@@ -2805,26 +2854,68 @@ function Clients({
 
  async function save(){
 
-  if(!f.name){
-   return alert('Informe o nome do cliente.');
+  if(edit&&!canAdmin){
+   return alert('Você não possui permissão para editar clientes.');
   }
 
+  const name=f.name.trim();
+  const phone=maskPhoneBR(f.phone);
+  const email=f.email.trim().toLowerCase();
+  const document=maskCpfCnpj(f.document);
+
+  if(!name||!phone||!email||!document){
+   return alert(
+    'Preencha todas as informações do cliente: nome, telefone, e-mail e CPF/CNPJ.'
+   );
+  }
+
+  const phoneDigits=safePhone(phone);
+
+  if(![10,11].includes(phoneDigits.length)){
+   return alert(
+    'Informe um telefone válido com DDD. Exemplo: (96) 98814-0106.'
+   );
+  }
+
+  if(!validEmail(email)){
+   return alert('Informe um e-mail válido.');
+  }
+
+  const documentDigits=String(document).replace(/\D/g,'');
+
+  if(![11,14].includes(documentDigits.length)){
+   return alert(
+    'Informe um CPF com 11 dígitos ou um CNPJ com 14 dígitos.'
+   );
+  }
+
+  const payload={
+   name,
+   phone,
+   email,
+   document
+  };
+
+  let saved;
+
   if(edit){
-   await update(
+   saved=await update(
     'clients',
     edit,
-    {...f},
+    payload,
     setClients,
     'Editou cliente'
    );
   }else{
-   await insert(
+   saved=await insert(
     'clients',
-    f,
+    payload,
     setClients,
     'Cadastrou cliente'
    );
   }
+
+  if(!saved)return;
 
   setF(empty);
   setEdit(null);
@@ -2875,16 +2966,41 @@ function Clients({
   >
 
    {!edit&&
-    <FormGrid
-     f={f}
-     setF={setF}
-     fields={[
-      ['name','Nome completo'],
-      ['phone','Telefone'],
-      ['email','E-mail'],
-      ['document','CPF/CNPJ']
-     ]}
-    />
+    <div className="formGrid">
+     <input
+      required
+      placeholder="Nome completo"
+      value={f.name}
+      onChange={e=>setF({...f,name:e.target.value})}
+     />
+
+     <input
+      required
+      type="tel"
+      inputMode="tel"
+      maxLength={15}
+      placeholder="Telefone"
+      value={f.phone}
+      onChange={e=>setF({...f,phone:maskPhoneBR(e.target.value)})}
+     />
+
+     <input
+      required
+      type="email"
+      placeholder="E-mail"
+      value={f.email}
+      onChange={e=>setF({...f,email:e.target.value})}
+     />
+
+     <input
+      required
+      inputMode="numeric"
+      maxLength={18}
+      placeholder="CPF/CNPJ"
+      value={f.document}
+      onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
+     />
+    </div>
    }
 
    <SearchBox
@@ -2907,31 +3023,31 @@ function Clients({
      <tr key={r.id}>
 
       <td>{r.name}</td>
-      <td>{r.phone||'-'}</td>
+      <td>{r.phone?maskPhoneBR(r.phone):'-'}</td>
       <td>{r.email||'-'}</td>
-      <td>{r.document||'-'}</td>
+      <td>{r.document?maskCpfCnpj(r.document):'-'}</td>
 
       <td>
        <Actions
         onView={()=>setDetail(r.id)}
 
         onEdit={
-         canWrite
+         canAdmin
           ?()=>{
             setEdit(r.id);
 
             setF({
              name:r.name||'',
-             phone:r.phone||'',
+             phone:maskPhoneBR(r.phone||''),
              email:r.email||'',
-             document:r.document||''
+             document:maskCpfCnpj(r.document||'')
             });
            }
           :null
         }
 
         onDelete={
-         canWrite
+         canAdmin
           ?()=>remove(
             'clients',
             r.id,
@@ -2957,16 +3073,41 @@ function Clients({
     onClose={closeEdit}
    >
 
-    <FormGrid
-     f={f}
-     setF={setF}
-     fields={[
-      ['name','Nome completo'],
-      ['phone','Telefone'],
-      ['email','E-mail'],
-      ['document','CPF/CNPJ']
-     ]}
-    />
+    <div className="formGrid">
+     <input
+      required
+      placeholder="Nome completo"
+      value={f.name}
+      onChange={e=>setF({...f,name:e.target.value})}
+     />
+
+     <input
+      required
+      type="tel"
+      inputMode="tel"
+      maxLength={15}
+      placeholder="Telefone"
+      value={f.phone}
+      onChange={e=>setF({...f,phone:maskPhoneBR(e.target.value)})}
+     />
+
+     <input
+      required
+      type="email"
+      placeholder="E-mail"
+      value={f.email}
+      onChange={e=>setF({...f,email:e.target.value})}
+     />
+
+     <input
+      required
+      inputMode="numeric"
+      maxLength={18}
+      placeholder="CPF/CNPJ"
+      value={f.document}
+      onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
+     />
+    </div>
 
     <div className="inline">
 
@@ -3001,7 +3142,7 @@ function Clients({
 
      <div>
       <b>Telefone</b>
-      <span>{client.phone||'-'}</span>
+      <span>{client.phone?maskPhoneBR(client.phone):'-'}</span>
      </div>
 
      <div>
@@ -3011,7 +3152,7 @@ function Clients({
 
      <div>
       <b>Documento</b>
-      <span>{client.document||'-'}</span>
+      <span>{client.document?maskCpfCnpj(client.document):'-'}</span>
      </div>
 
      <div>
@@ -8241,7 +8382,7 @@ function UsersPanel({
     <div>
      <b>Administrativo</b>
      <p>
-      Clientes, veículos, agendamentos e execução dos serviços.
+      Clientes, veículos, agendamentos, execução dos serviços e cadastro de novos usuários. Não visualiza faturamento no Dashboard e não edita usuários.
      </p>
     </div>
 
