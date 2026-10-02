@@ -1104,3 +1104,206 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
  .publicHero{min-height:0!important;}
  .publicSection{padding:44px 0!important;}
 }
+
+/* =========================================================
+   ATUALIZAÇÃO 2.8 — MARCAS, IDENTIDADE E EQUIPE
+========================================================= */
+/* Pequeno veículo orbitando a logo/foto do usuário. */
+.app>aside .identitySlot::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:132px;
+  height:132px;
+  transform:translate(-50%,-50%);
+  border:1px solid rgba(239,35,60,.18);
+  border-radius:50%;
+  pointer-events:none;
+  box-shadow:0 0 24px rgba(239,35,60,.06) inset;
+}
+.app>aside .identitySlot::after{
+  content:'🚗';
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  font-size:17px;
+  line-height:1;
+  z-index:170;
+  pointer-events:none;
+  filter:drop-shadow(0 3px 7px rgba(0,0,0,.65));
+  animation:vehicleOrbit 7s linear infinite;
+}
+@keyframes vehicleOrbit{
+  from{transform:translate(-50%,-50%) rotate(0deg) translateX(66px) rotate(0deg)}
+  to{transform:translate(-50%,-50%) rotate(360deg) translateX(66px) rotate(-360deg)}
+}
+
+/* Campos de veículo em caixa alta também visualmente. */
+.vehicleUppercase{text-transform:uppercase}
+
+@media(max-width:860px){
+ .app>aside .identitySlot::before{width:92px;height:92px}
+ @keyframes vehicleOrbit{
+  from{transform:translate(-50%,-50%) rotate(0deg) translateX(46px) rotate(0deg)}
+  to{transform:translate(-50%,-50%) rotate(360deg) translateX(46px) rotate(-360deg)}
+ }
+}
+
+/* =========================================================
+   AJUSTE 2.8.1 — IDENTIDADE MAIOR + ÓRBITA DE ESTÉTICA
+========================================================= */
+/* A logo/foto ocupa melhor o espaço reservado no topo. */
+.app>aside .identitySlot{
+  flex-basis:176px!important;
+  min-height:176px!important;
+  padding:8px 6px 14px!important;
+}
+.sidebarBrandLogo{
+  width:min(218px,98%)!important;
+  max-width:218px!important;
+  height:142px!important;
+}
+.sidebarUserPhoto{
+  width:128px!important;
+  height:128px!important;
+  border-radius:26px!important;
+}
+
+/* Substitui o carro único da versão 2.8 por cinco elementos orbitais. */
+.app>aside .identitySlot::after{content:none!important;animation:none!important}
+.app>aside .identitySlot::before{
+  width:150px!important;
+  height:150px!important;
+  border-color:rgba(239,35,60,.22)!important;
+}
+.identityOrbit{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:150px;
+  height:150px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  pointer-events:none;
+  z-index:175;
+  animation:identityOrbitSpin 13s linear infinite;
+}
+.orbitItem{
+  --angle:0deg;
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  font-size:17px;
+  line-height:1;
+  filter:drop-shadow(0 3px 7px rgba(0,0,0,.72));
+  transform:translate(-50%,-50%) rotate(var(--angle)) translateX(75px) rotate(calc(-1 * var(--angle)));
+}
+.orbitCar{--angle:0deg}
+.orbitMoto{--angle:72deg}
+.orbitSoap{--angle:144deg}
+.orbitFoam{--angle:216deg}
+.orbitSponge{--angle:288deg}
+@keyframes identityOrbitSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+@media(max-width:860px){
+ .app>aside .identitySlot{flex-basis:116px!important;min-height:116px!important}
+ .sidebarBrandLogo{height:96px!important;width:174px!important}
+ .sidebarUserPhoto{width:88px!important;height:88px!important;border-radius:19px!important}
+ .app>aside .identitySlot::before{width:102px!important;height:102px!important}
+ .identityOrbit{width:102px;height:102px}
+ .orbitItem{font-size:14px;width:22px;height:22px;transform:translate(-50%,-50%) rotate(var(--angle)) translateX(51px) rotate(calc(-1 * var(--angle)))}
+}
+
+/* =========================================================
+   AJUSTE 2.8.2 — IMAGEM MAIOR DENTRO DA MOLDURA REDONDA
+========================================================= */
+/* A identidade passa a ocupar o centro da moldura circular, sem deixar
+   a logo/foto "solta" em um retângulo. Os elementos orbitais ficam fora. */
+.app>aside .identitySlot{
+  flex-basis:196px!important;
+  min-height:196px!important;
+  padding:8px 6px 16px!important;
+}
+.app>aside .identitySlot::before{
+  width:164px!important;
+  height:164px!important;
+  border:2px solid rgba(239,35,60,.38)!important;
+  background:radial-gradient(circle at 50% 45%,rgba(239,35,60,.08),rgba(0,0,0,.12) 72%)!important;
+  box-shadow:0 0 0 5px rgba(239,35,60,.045),0 0 28px rgba(239,35,60,.12),0 0 24px rgba(239,35,60,.07) inset!important;
+}
+.sidebarIdentityImage{
+  position:relative!important;
+  z-index:165!important;
+}
+.sidebarBrandLogo,
+.sidebarUserPhoto{
+  width:152px!important;
+  height:152px!important;
+  max-width:152px!important;
+  border-radius:50%!important;
+  object-fit:cover!important;
+  object-position:center!important;
+  border:0!important;
+  background:#050507!important;
+  box-shadow:none!important;
+  filter:none!important;
+  clip-path:circle(50% at 50% 50%)!important;
+}
+.identityOrbit{
+  width:190px!important;
+  height:190px!important;
+  z-index:175!important;
+}
+.orbitItem{
+  transform:translate(-50%,-50%) rotate(var(--angle)) translateX(95px) rotate(calc(-1 * var(--angle)))!important;
+}
+
+@media(max-width:860px){
+ .app>aside .identitySlot{flex-basis:132px!important;min-height:132px!important;padding:6px 4px 10px!important}
+ .app>aside .identitySlot::before{width:108px!important;height:108px!important}
+ .sidebarBrandLogo,.sidebarUserPhoto{width:100px!important;height:100px!important;max-width:100px!important;border-radius:50%!important}
+ .identityOrbit{width:128px!important;height:128px!important}
+ .orbitItem{font-size:14px!important;width:22px!important;height:22px!important;transform:translate(-50%,-50%) rotate(var(--angle)) translateX(64px) rotate(calc(-1 * var(--angle)))!important}
+}
+
+/* =========================================================
+   AJUSTE 2.8.3 — CENTRALIZAÇÃO EXATA DA IDENTIDADE
+========================================================= */
+/* A barra de rolagem vertical da sidebar reduz a área útil e fazia o
+   centro visual ficar alguns pixels à esquerda. Logo/foto, moldura e
+   órbita agora compartilham exatamente o mesmo ponto central. */
+.app>aside .identitySlot{
+  --identity-center-x:calc(50% + 6px);
+  position:sticky!important;
+  display:block!important;
+}
+.app>aside .identitySlot::before{
+  left:var(--identity-center-x)!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+}
+.app>aside .identitySlot>.sidebarIdentityImage{
+  position:absolute!important;
+  left:var(--identity-center-x)!important;
+  top:50%!important;
+  margin:0!important;
+  transform:translate(-50%,-50%)!important;
+}
+.app>aside .identitySlot>.identityOrbit{
+  left:var(--identity-center-x)!important;
+  top:50%!important;
+  margin:0!important;
+}
+
+@media(max-width:860px){
+  .app>aside .identitySlot{--identity-center-x:50%}
+}

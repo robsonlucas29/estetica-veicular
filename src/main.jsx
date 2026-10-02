@@ -52,6 +52,46 @@ const maskPhoneBR=value=>{
  return `(${ddd}) ${rest.slice(0,5)}-${rest.slice(5)}`;
 };
 
+const VEHICLE_BRAND_GROUPS=[
+ {
+  name:'Grandes Grupos e Marcas Populares',
+  brands:['Toyota','Volkswagen','Ford','Chevrolet (GM)','Fiat','Honda','Hyundai','Kia','Nissan','Renault','Peugeot','Citroën','Jeep','Ram','Mitsubishi','Subaru','Suzuki','Mazda','Daihatsu','Dacia']
+ },
+ {
+  name:'Eletrificação e Novas Marcas',
+  brands:['BYD','Tesla','XPeng','Geely','Chery','Caoa Chery','Changan','GAC Motor','Nio','Li Auto','Ora (Great Wall)','Haval','Zeekr','Lotus','Polestar','Smart','VinFast','Faraday Future','Rivian','Lucid Motors']
+ },
+ {
+  name:'Luxo e Esportivas',
+  brands:['Mercedes-Benz','BMW','Audi','Porsche','Volvo','Lexus','Infiniti','Acura','Genesis','Jaguar','Land Rover','Maserati','Alfa Romeo','Ferrari','Lamborghini','Aston Martin','Bentley','Rolls-Royce','Bugatti','McLaren','Pagani','Koenigsegg','Rimac','Alpine','Mini','DS Automobiles','Maybach','TVR','Morgan','Caterham']
+ },
+ {
+  name:'Comerciais, Nacionais e Regionais',
+  brands:['Iveco','Agrale','Troller','SsangYong (KGM)','Mahindra','Tata Motors','Isuzu','Hino','Foton','JAC Motors']
+ },
+ {
+  name:'Históricas, Nicho e Outras',
+  brands:['Dodge','Chrysler','Buick','Cadillac','GMC','Lincoln','Mercury','Pontiac','Saturn','Oldsmobile','Plymouth','Hummer','Scion','Lancia','Autobianchi','Rover','Saab','Daewoo','Lifan','Hafe']
+ },
+ {
+  name:'Motos',
+  brands:['Aprilia','Avelloz','Bajaj','Benelli','BMW','Bull Motors','CFMOTO','Dafra','Ducati','GasGas','Haojue','Harley-Davidson','Honda','Husqvarna','Kawasaki','KTM','Kymco','Mottu','MV Agusta','Royal Enfield','Shineray','Suzuki','Triumph','Voge','Yamaha']
+ }
+];
+
+const upperVehicleText=value=>String(value||'').toLocaleUpperCase('pt-BR');
+
+const findVehicleBrandGroup=(brand,categoryName='')=>{
+ const b=String(brand||'').trim().toLocaleUpperCase('pt-BR');
+ const isMoto=String(categoryName||'').toLocaleUpperCase('pt-BR').includes('MOTO');
+ if(isMoto){
+  const moto=VEHICLE_BRAND_GROUPS.find(g=>g.name==='Motos');
+  if(moto?.brands.some(x=>upperVehicleText(x)===b))return moto.name;
+ }
+ if(['CHEVROLET','GM'].includes(b))return 'Grandes Grupos e Marcas Populares';
+ return VEHICLE_BRAND_GROUPS.find(g=>g.brands.some(x=>upperVehicleText(x)===b))?.name||'';
+};
+
 // Máscara automática para CPF (11 dígitos) e CNPJ (14 dígitos)
 const maskCpfCnpj=value=>{
  const n=String(value||'').replace(/\D/g,'').slice(0,14);
@@ -2500,6 +2540,13 @@ function Sidebar({
     className={showingUser?'sidebarIdentityImage sidebarUserPhoto':'sidebarIdentityImage sidebarBrandLogo'}
     onError={()=>{if(showingUser){setPhotoOk(false);setShowPhoto(false);}}}
    />
+   <div className="identityOrbit" aria-hidden="true">
+    <span className="orbitItem orbitCar">🚗</span>
+    <span className="orbitItem orbitMoto">🏍️</span>
+    <span className="orbitItem orbitSoap">🧼</span>
+    <span className="orbitItem orbitFoam">🫧</span>
+    <span className="orbitItem orbitSponge">🧽</span>
+   </div>
   </div>
 
   <nav>
@@ -3495,10 +3542,12 @@ function Vehicles({
  const [detail,setDetail]=useState(null);
  const [search,setSearch]=useState('');
  const [categoryName,setCategoryName]=useState('');
+ const [brandNiche,setBrandNiche]=useState('');
 
  function closeEdit(){
   setEdit(null);
   setF(empty);
+  setBrandNiche('');
  }
 
  async function save(){
@@ -3513,12 +3562,20 @@ function Vehicles({
    );
   }
 
+  const payload={
+   ...f,
+   plate:upperVehicleText(f.plate),
+   brand:upperVehicleText(f.brand),
+   model:upperVehicleText(f.model),
+   color:upperVehicleText(f.color)
+  };
+
   if(edit){
 
    await update(
     'vehicles',
     edit,
-    f,
+    payload,
     setVehicles,
     'Editou veículo'
    );
@@ -3527,7 +3584,7 @@ function Vehicles({
 
    await insert(
     'vehicles',
-    f,
+    payload,
     setVehicles,
     'Cadastrou veículo'
    );
@@ -3535,6 +3592,7 @@ function Vehicles({
   }
 
   setF(empty);
+  setBrandNiche('');
   setEdit(null);
  }
 
@@ -3666,31 +3724,60 @@ function Vehicles({
    </select>
 
 
-   {[
-    'plate',
-    'brand',
-    'model',
-    'color',
-    'year'
-   ].map(k=>
-    <input
-     key={k}
-     placeholder={{
-      plate:'▣ Placa',
-      brand:'◆ Marca',
-      model:'🚗 Modelo',
-      color:'◉ Cor',
-      year:'◷ Ano'
-     }[k]}
-     value={f[k]}
-     onChange={e=>
-      setF({
-       ...f,
-       [k]:e.target.value
-      })
-     }
-    />
-   )}
+   <select
+    value={brandNiche}
+    onChange={e=>{
+     setBrandNiche(e.target.value);
+     setF({...f,brand:''});
+    }}
+   >
+    <option value="">🏷 Nicho da marca</option>
+    {VEHICLE_BRAND_GROUPS.map(group=>
+     <option key={group.name} value={group.name}>{group.name}</option>
+    )}
+   </select>
+
+   <select
+    value={f.brand}
+    disabled={!brandNiche}
+    onChange={e=>setF({...f,brand:upperVehicleText(e.target.value)})}
+   >
+    <option value="">◆ {brandNiche?'Marca':'Escolha primeiro o nicho'}</option>
+    {f.brand&&brandNiche&&!((VEHICLE_BRAND_GROUPS.find(g=>g.name===brandNiche)?.brands||[]).some(brand=>upperVehicleText(brand)===upperVehicleText(f.brand)))&&
+     <option value={f.brand}>{upperVehicleText(f.brand)}</option>
+    }
+    {(VEHICLE_BRAND_GROUPS.find(g=>g.name===brandNiche)?.brands||[]).map(brand=>
+     <option key={brand} value={upperVehicleText(brand)}>{upperVehicleText(brand)}</option>
+    )}
+   </select>
+
+   <input
+    placeholder="▣ Placa"
+    value={f.plate}
+    onChange={e=>setF({...f,plate:upperVehicleText(e.target.value)})}
+    style={{textTransform:'uppercase'}}
+   />
+
+   <input
+    placeholder="🚗 Modelo"
+    value={f.model}
+    onChange={e=>setF({...f,model:upperVehicleText(e.target.value)})}
+    style={{textTransform:'uppercase'}}
+   />
+
+   <input
+    placeholder="◉ Cor"
+    value={f.color}
+    onChange={e=>setF({...f,color:upperVehicleText(e.target.value)})}
+    style={{textTransform:'uppercase'}}
+   />
+
+   <input
+    placeholder="◷ Ano"
+    value={f.year}
+    onChange={e=>setF({...f,year:e.target.value.replace(/\D/g,'').slice(0,4)})}
+    inputMode="numeric"
+   />
 
   </div>;
 
@@ -3847,13 +3934,15 @@ function Vehicles({
           ?()=>{
             setEdit(r.id);
 
+            const categoryNameForBrand=vehicleCategories.find(c=>c.id===r.category_id)?.name||'';
+            setBrandNiche(findVehicleBrandGroup(r.brand,categoryNameForBrand));
             setF({
              client_id:r.client_id||'',
              category_id:r.category_id||'',
-             plate:r.plate||'',
-             brand:r.brand||'',
-             model:r.model||'',
-             color:r.color||'',
+             plate:upperVehicleText(r.plate||''),
+             brand:upperVehicleText(r.brand||''),
+             model:upperVehicleText(r.model||''),
+             color:upperVehicleText(r.color||''),
              year:r.year||''
             });
            }
@@ -3946,7 +4035,8 @@ function VehicleReferenceImage({vehicle,category}){
 
  useEffect(()=>{
   const controller=new AbortController();
-  const brand=String(vehicle.brand||'').trim();
+  const brandStored=String(vehicle.brand||'').trim();
+  const brand=brandStored.replace(/\s*\(GM\)\s*/i,'').trim();
   const rawModel=String(vehicle.model||'').trim();
   const year=String(vehicle.year||'').trim();
   setImageFailed(false);
@@ -6629,6 +6719,16 @@ function Employees({
    );
 
 
+ const employeeCompletedHistory=history.filter(o=>o.status==='concluido');
+ const employeeAllTimeTotal=employeeCompletedHistory.reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
+ const employeeNow=new Date();
+ const employeeCurrentMonthTotal=employeeCompletedHistory
+  .filter(o=>{
+   const d=new Date(o.completed_at||o.created_at);
+   return d.getFullYear()===employeeNow.getFullYear()&&d.getMonth()===employeeNow.getMonth();
+  })
+  .reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
+
  const employeeFields=
   <>
   <div className="formGrid">
@@ -6650,9 +6750,11 @@ function Employees({
     onChange={e=>
      setF({
       ...f,
-      phone:e.target.value
+      phone:maskPhoneBR(e.target.value)
      })
     }
+    inputMode="tel"
+    maxLength={15}
    />
 
    <input
@@ -6713,8 +6815,9 @@ function Employees({
      'Função',
      'Telefone',
      'Comissão',
-     'Total gerado',
-     'Comissão estimada',
+     'Gerado no mês',
+     'Total geral',
+     'Comissão estimada (mês)',
      'Ações'
     ]}
    >
@@ -6735,18 +6838,27 @@ function Employees({
        0
       );
 
+     const now=new Date();
+     const monthTotal=eo
+      .filter(o=>{
+       const d=new Date(o.completed_at||o.created_at);
+       return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+      })
+      .reduce((s,o)=>s+Number(o.charged_amount||0),0);
+
      return <tr key={e.id}>
 
       <td><div className="personCell">{e.photo_url?<img src={e.photo_url} alt=""/>:<span className="avatarFallback"><User size={15}/></span>}<b>{e.name}</b></div></td>
       <td>{e.position||'-'}</td>
-      <td>{e.phone||'-'}</td>
+      <td>{e.phone?maskPhoneBR(e.phone):'-'}</td>
       <td>{e.commission_percent||0}%</td>
+      <td><b>{money(monthTotal)}</b></td>
       <td>{money(total)}</td>
 
       <td>
        <b>
         {money(
-         total*
+         monthTotal*
          Number(e.commission_percent||0)/
          100
         )}
@@ -6766,7 +6878,7 @@ function Employees({
 
             setF({
              name:e.name||'',
-             phone:e.phone||'',
+             phone:maskPhoneBR(e.phone||''),
              position:e.position||'',
              commission_percent:
               e.commission_percent||0,
@@ -6850,7 +6962,7 @@ function Employees({
      <div>
       <b>Telefone</b>
       <span>
-       {employee.phone||'-'}
+       {employee.phone?maskPhoneBR(employee.phone):'-'}
       </span>
      </div>
 
@@ -6864,6 +6976,16 @@ function Employees({
      <div>
       <b>Serviços realizados</b>
       <span>{history.length}</span>
+     </div>
+
+     <div>
+      <b>Gerado no mês vigente</b>
+      <span>{money(employeeCurrentMonthTotal)}</span>
+     </div>
+
+     <div>
+      <b>Total gerado — todos os meses</b>
+      <span>{money(employeeAllTimeTotal)}</span>
      </div>
 
     </div>
