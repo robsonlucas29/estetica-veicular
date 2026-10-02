@@ -4,11 +4,12 @@ import {createClient} from '@supabase/supabase-js';
 import {
  Car,Users,Wrench,ClipboardList,ShieldCheck,LogOut,Plus,Camera,Trash2,Edit3,
  CalendarDays,Wallet,UserRoundCog,FileDown,MessageCircle,Eye,X,CheckCircle2,
- Clock3,CreditCard,Percent,Image as ImageIcon,Save,Search
+ Clock3,CreditCard,Percent,Image as ImageIcon,Save,Search,MapPin,Mail,Phone,IdCard,
+ User,Briefcase,DollarSign,Lock,Tag,Palette,Hash,FileText,ImagePlus,BarChart3
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
 
@@ -97,6 +98,56 @@ const brDateToIso=value=>{
 
  return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 };
+
+const isoDateToBR=value=>{
+ if(!value)return '';
+ const [y,m,d]=String(value).slice(0,10).split('-');
+ return y&&m&&d?`${d}/${m}/${y}`:'';
+};
+
+async function uploadIdentityPhoto(file,folder='avatars'){
+ if(!file)return '';
+ if(!file.type?.startsWith('image/')){
+  throw new Error('Selecione um arquivo de imagem válido.');
+ }
+ if(file.size>5*1024*1024){
+  throw new Error('A imagem deve possuir no máximo 5 MB.');
+ }
+ const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+ const path=`${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+ const {error}=await supabase.storage.from('service-images').upload(path,file);
+ if(error)throw error;
+ return supabase.storage.from('service-images').getPublicUrl(path).data.publicUrl;
+}
+
+const excelColors={red:'EF233C',dark:'0B0B0E',panel:'15151B',panel2:'1D1D24',white:'FFFFFF',muted:'A1A1AA',grid:'30303A'};
+function excelCellStyle({fill=excelColors.panel,font=excelColors.white,bold=false,size=11,align='left',border=true}={}){const st={fill:{fgColor:{rgb:fill}},font:{color:{rgb:font},bold,sz:size,name:'Aptos'},alignment:{horizontal:align,vertical:'center',wrapText:true}};if(border)st.border={top:{style:'thin',color:{rgb:excelColors.grid}},bottom:{style:'thin',color:{rgb:excelColors.grid}},left:{style:'thin',color:{rgb:excelColors.grid}},right:{style:'thin',color:{rgb:excelColors.grid}}};return st;}
+function styleExcelRange(ws,range,style){const r=XLSX.utils.decode_range(range);for(let R=r.s.r;R<=r.e.r;R++)for(let C=r.s.c;C<=r.e.c;C++){const a=XLSX.utils.encode_cell({r:R,c:C});if(!ws[a])ws[a]={t:'s',v:''};ws[a].s=style;}}
+function makeExcelDashboard({title,period,metrics=[],sections=[]}){const data=Array.from({length:50},()=>Array(12).fill(''));data[0][0]='GARAGEM GRAU CAR 096';data[1][0]=title;data[2][0]=`Período: ${period}`;data[2][7]=`Emitido em: ${new Date().toLocaleString('pt-BR')}`;metrics.slice(0,4).forEach((m,i)=>{const c=i*3;data[4][c]=m.label.toUpperCase();data[5][c]=m.value;});let row=9;sections.forEach(sec=>{data[row][0]=sec.title.toUpperCase();row++;const max=Math.max(1,...(sec.items||[]).map(x=>Number(x.value)||0));(sec.items||[]).slice(0,10).forEach((item,i)=>{const pct=(Number(item.value)||0)/max;data[row+i][0]=item.label;data[row+i][3]=item.display??item.value;data[row+i][5]='█'.repeat(Math.max(1,Math.round(pct*18)));});row+=Math.min(10,(sec.items||[]).length)+2;});const ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=[{wch:28},{wch:15},{wch:4},{wch:18},{wch:4},{wch:24},{wch:4},{wch:24},{wch:4},{wch:18},{wch:4},{wch:18}];ws['!rows']=Array.from({length:50},(_,i)=>({hpt:i<3?24:i===5?32:20}));ws['!merges']=[XLSX.utils.decode_range('A1:L1'),XLSX.utils.decode_range('A2:L2'),XLSX.utils.decode_range('A3:F3'),XLSX.utils.decode_range('H3:L3')];styleExcelRange(ws,'A1:L50',excelCellStyle({fill:excelColors.dark,border:false}));styleExcelRange(ws,'A1:L1',excelCellStyle({fill:excelColors.red,bold:true,size:16,border:false}));styleExcelRange(ws,'A2:L2',excelCellStyle({fill:excelColors.dark,bold:true,size:20,border:false}));styleExcelRange(ws,'A3:L3',excelCellStyle({fill:excelColors.dark,font:excelColors.muted,size:10,border:false}));metrics.slice(0,4).forEach((m,i)=>{const c=i*3;styleExcelRange(ws,`${XLSX.utils.encode_cell({r:4,c})}:${XLSX.utils.encode_cell({r:6,c:c+1})}`,excelCellStyle({fill:excelColors.panel,border:true}));ws[XLSX.utils.encode_cell({r:4,c})].s=excelCellStyle({fill:excelColors.panel,font:excelColors.muted,bold:true,size:9,border:false});ws[XLSX.utils.encode_cell({r:5,c})].s=excelCellStyle({fill:excelColors.panel,bold:true,size:18,border:false});});for(let R=9;R<50;R++){const a=ws[XLSX.utils.encode_cell({r:R,c:0})];if(a?.v&&String(a.v)===String(a.v).toUpperCase())styleExcelRange(ws,`${XLSX.utils.encode_cell({r:R,c:0})}:${XLSX.utils.encode_cell({r:R,c:11})}`,excelCellStyle({fill:excelColors.panel2,bold:true,border:false}));const bar=ws[XLSX.utils.encode_cell({r:R,c:5})];if(bar?.v)bar.s=excelCellStyle({fill:excelColors.dark,font:excelColors.red,bold:true,border:false});}return ws;}
+function makeExcelDataSheet(rows,columns){const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=columns.map(c=>({wch:c.width||18}));if(rows.length)ws['!autofilter']={ref:`A1:${XLSX.utils.encode_col(columns.length-1)}${rows.length+1}`};styleExcelRange(ws,`A1:${XLSX.utils.encode_col(columns.length-1)}1`,excelCellStyle({fill:excelColors.red,bold:true,align:'center'}));for(let r=2;r<=rows.length+1;r++){const fill=r%2===0?'F3F4F6':'FFFFFF';for(let c=0;c<columns.length;c++){const a=XLSX.utils.encode_cell({r:r-1,c});if(ws[a])ws[a].s={fill:{fgColor:{rgb:fill}},font:{color:{rgb:'202027'},sz:10,name:'Aptos'},alignment:{vertical:'center',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'E5E7EB'}}}};}}return ws;}
+
+function IconField({I,children,className=''}){
+ return <div className={`iconField ${className}`}>
+  {I&&<I size={17} aria-hidden="true"/>}
+  {children}
+ </div>;
+}
+
+function PhotoPicker({file,currentUrl,onChange,label='Foto de identificação'}){
+ const preview=useMemo(()=>file?URL.createObjectURL(file):currentUrl||'',[file,currentUrl]);
+ useEffect(()=>()=>{if(file&&preview?.startsWith('blob:'))URL.revokeObjectURL(preview)},[file,preview]);
+ return <div className="photoPicker">
+  <div className="photoPreview">
+   {preview?<img src={preview} alt="Prévia da identificação"/>:<User size={28}/>}
+  </div>
+  <label>
+   <ImagePlus size={17}/>
+   <span>{file?file.name:label}</span>
+   <input type="file" accept="image/*" onChange={e=>onChange(e.target.files?.[0]||null)}/>
+  </label>
+  <small>JPG, PNG ou WEBP · até 5 MB</small>
+ </div>;
+}
 
 
 /* =========================================================
@@ -306,6 +357,12 @@ function PublicSite(){
       dos serviços realizados.
      </p>
 
+     <div className="heroTrustRow">
+      <span><CheckCircle2 size={16}/> Atendimento organizado</span>
+      <span><Clock3 size={16}/> Acompanhamento de serviços</span>
+      <span><ShieldCheck size={16}/> Histórico digital</span>
+     </div>
+
      <div className="publicHeroActions">
 
       <a
@@ -334,6 +391,68 @@ function PublicSite(){
       src={logoGraucar}
       alt="Logo Garagem Grau Car"
      />
+    </div>
+
+   </section>
+
+
+   <section style={{padding:'0 0 48px'}}>
+
+    <div style={{
+     display:'flex',
+     justifyContent:'space-between',
+     alignItems:'end',
+     gap:18,
+     flexWrap:'wrap',
+     marginBottom:18
+    }}>
+
+     <div>
+      <span className="publicEyebrow">
+       LOCALIZAÇÃO
+      </span>
+
+      <h2 style={{margin:'8px 0'}}>
+       Onde estamos
+      </h2>
+
+      <p style={{margin:0}}>
+       Avenida Coaracy Nunes, 907 B - Centro, Macapá - AP
+      </p>
+     </div>
+
+     <a
+      className="publicPrimary mapRouteButton"
+      href="https://www.google.com/maps/dir/?api=1&destination=Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP"
+      target="_blank"
+      rel="noreferrer"
+      style={{textDecoration:'none'}}
+     >
+      <MapPin size={19}/>
+      <span><b>Traçar rota</b><small>Abrir no Google Maps</small></span>
+     </a>
+
+    </div>
+
+    <div style={{
+     overflow:'hidden',
+     borderRadius:18,
+     border:'2px solid #ef4444',
+     minHeight:420,
+     boxShadow:'0 0 0 4px rgba(239,68,68,.12), 0 18px 45px rgba(0,0,0,.28)'
+    }}>
+
+     <iframe
+      title="Localização Garagem Grau Car"
+      src="https://www.google.com/maps?q=Garagem+Grau+Car,+Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP&z=19&output=embed"
+      width="100%"
+      height="420"
+      style={{border:0,display:'block'}}
+      allowFullScreen
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+     />
+
     </div>
 
    </section>
@@ -374,67 +493,6 @@ function PublicSite(){
        e a conclusão dos serviços.
       </p>
      </article>
-
-    </div>
-
-   </section>
-
-
-   <section style={{padding:'0 0 48px'}}>
-
-    <div style={{
-     display:'flex',
-     justifyContent:'space-between',
-     alignItems:'end',
-     gap:18,
-     flexWrap:'wrap',
-     marginBottom:18
-    }}>
-
-     <div>
-      <span className="publicEyebrow">
-       LOCALIZAÇÃO
-      </span>
-
-      <h2 style={{margin:'8px 0'}}>
-       Onde estamos
-      </h2>
-
-      <p style={{margin:0}}>
-       Avenida Coaracy Nunes, 907 B - Centro, Macapá - AP
-      </p>
-     </div>
-
-     <a
-      className="publicPrimary"
-      href="https://www.google.com/maps/dir/?api=1&destination=Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP"
-      target="_blank"
-      rel="noreferrer"
-      style={{textDecoration:'none'}}
-     >
-      📍 Como chegar
-     </a>
-
-    </div>
-
-    <div style={{
-     overflow:'hidden',
-     borderRadius:18,
-     border:'2px solid #ef4444',
-     minHeight:420,
-     boxShadow:'0 0 0 4px rgba(239,68,68,.12), 0 18px 45px rgba(0,0,0,.28)'
-    }}>
-
-     <iframe
-      title="Localização Garagem Grau Car"
-      src="https://www.google.com/maps?q=Garagem+Grau+Car,+Avenida+Coaracy+Nunes,+907+B,+Centro,+Macapa,+AP&z=19&output=embed"
-      width="100%"
-      height="420"
-      style={{border:0,display:'block'}}
-      allowFullScreen
-      loading="lazy"
-      referrerPolicy="no-referrer-when-downgrade"
-     />
 
     </div>
 
@@ -865,7 +923,7 @@ function CareerPage(){
      onSubmit={submitApplication}
     >
 
-     <input
+     <IconField I={User}><input
       required
       placeholder="Nome completo"
       value={application.name}
@@ -873,7 +931,7 @@ function CareerPage(){
        ...application,
        name:e.target.value
       })}
-     />
+     /></IconField>
 
      <input
       required
@@ -885,7 +943,7 @@ function CareerPage(){
       })}
      />
 
-     <input
+     <IconField I={Mail}><input
       required
       type="email"
       placeholder="E-mail"
@@ -894,7 +952,7 @@ function CareerPage(){
        ...application,
        email:e.target.value
       })}
-     />
+     /></IconField>
 
      <input
       required
@@ -1993,6 +2051,7 @@ function App(){
    tab={tab}
    setTab={setTab}
    role={role}
+   profile={profiles.find(p=>p.id===profile?.id)||profile}
    signOut={signOut}
   />
 
@@ -2112,6 +2171,7 @@ function App(){
     <UsersPanel
      {...common}
      setProfiles={setProfiles}
+     setProfile={setProfile}
     />
    }
 
@@ -2137,7 +2197,7 @@ function App(){
       <input
        type="password"
        autoComplete="new-password"
-       placeholder="Nova senha"
+       placeholder="🔒 Nova senha"
        value={newPassword}
        onChange={e=>
         setNewPassword(e.target.value)
@@ -2147,7 +2207,7 @@ function App(){
       <input
        type="password"
        autoComplete="new-password"
-       placeholder="Confirmar nova senha"
+       placeholder="🔒 Confirmar nova senha"
        value={confirmPassword}
        onChange={e=>
         setConfirmPassword(e.target.value)
@@ -2325,7 +2385,7 @@ function Login({
     type="email"
     autoComplete="username"
     required
-    placeholder="Usuário"
+    placeholder="✉ Usuário"
     value={login.email}
     onChange={e=>
      setLogin({
@@ -2339,7 +2399,7 @@ function Login({
     type="password"
     autoComplete="current-password"
     required
-    placeholder="Senha"
+    placeholder="🔒 Senha"
     value={login.password}
     onChange={e=>
      setLogin({
@@ -2389,8 +2449,29 @@ function Sidebar({
  tab,
  setTab,
  role,
+ profile,
  signOut
 }){
+ const [photoOk,setPhotoOk]=useState(false);
+ const [showPhoto,setShowPhoto]=useState(false);
+ const photoUrl=String(profile?.photo_url||'').trim();
+
+ useEffect(()=>{
+  setPhotoOk(false);
+  setShowPhoto(false);
+  if(!photoUrl)return;
+  const probe=new Image();
+  probe.onload=()=>setPhotoOk(true);
+  probe.onerror=()=>{setPhotoOk(false);setShowPhoto(false);};
+  probe.src=photoUrl;
+  return()=>{probe.onload=null;probe.onerror=null;};
+ },[photoUrl]);
+
+ useEffect(()=>{
+  if(!photoUrl||!photoOk){setShowPhoto(false);return;}
+  const timer=setInterval(()=>setShowPhoto(v=>!v),4500);
+  return()=>clearInterval(timer);
+ },[photoUrl,photoOk]);
 
  const all=[
   ['dashboard',ClipboardList,'Dashboard'],
@@ -2406,72 +2487,34 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set([
-  'servicos',
-  'equipe',
-  'caixa',
-  'relatorios',
-  'usuarios',
-  'auditoria'
- ]);
-
- const items=all.filter(([id])=>{
-  if(['administrador','gerente'].includes(role))return true;
-
-  // Administrativo vê Usuários somente para cadastrar novos usuários.
-  if(role==='administrativo'&&id==='usuarios')return true;
-
-  return !managerOnly.has(id);
- });
+ const managerOnly=new Set(['servicos','equipe','caixa','relatorios','usuarios','auditoria']);
+ const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
+ const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
  return <aside>
-
-  <div className="logo">
+  <div className="logo identitySlot">
    <img
-    src={logoGraucar}
-    alt="Grau Car Garagem"
-    className="grauCarLogo"
+    key={showingUser?`user-${photoUrl}`:'grau-car-logo'}
+    src={showingUser?photoUrl:logoGraucar}
+    alt={showingUser?`Foto de ${profile?.full_name||'usuário'}`:'Grau Car Garagem'}
+    className={showingUser?'sidebarIdentityImage sidebarUserPhoto':'sidebarIdentityImage sidebarBrandLogo'}
+    onError={()=>{if(showingUser){setPhotoOk(false);setShowPhoto(false);}}}
    />
   </div>
 
   <nav>
-
    {items.map(([id,I,l])=>
-    <button
-     className={tab===id?'active':''}
-     onClick={()=>setTab(id)}
-     key={id}
-    >
-     <I size={19}/>
-     {l}
+    <button className={tab===id?'active':''} onClick={()=>setTab(id)} key={id}>
+     <I size={19}/>{l}
     </button>
    )}
-
   </nav>
 
   <div className="asideBottom">
-
-   <span>
-    Perfil: {role}
-   </span>
-
-   <button
-    type="button"
-    onClick={()=>{
-     window.location.href='/';
-    }}
-   >
-    <Car size={18}/>
-    Voltar ao site
-   </button>
-
-   <button onClick={signOut}>
-    <LogOut size={18}/>
-    Sair
-   </button>
-
+   <span>Perfil: {role}</span>
+   <button type="button" onClick={()=>{window.location.href='/';}}><Car size={18}/>Voltar ao site</button>
+   <button onClick={signOut}><LogOut size={18}/>Sair</button>
   </div>
-
  </aside>
 }
 
@@ -2659,18 +2702,67 @@ function SearchBox({
 }
 
 
-function Card({t,v}){
- return <div className="card">
-  <span>{t}</span>
+function Card({t,v,I,hint}){
+ return <div className="card modernMetricCard">
+  <div className="metricTop">
+   <span>{t}</span>
+   {I&&<span className="metricIcon"><I size={18}/></span>}
+  </div>
   <strong>{v}</strong>
+  {hint&&<small>{hint}</small>}
  </div>
 }
-
 
 function Status({value}){
  return <span className={`status ${value}`}>
   {String(value||'-').replaceAll('_',' ')}
  </span>
+}
+
+function paymentSymbol(name){
+ const n=String(name||'').toLowerCase();
+ if(n.includes('pix'))return '◆';
+ if(n.includes('dinheiro'))return '💵';
+ if(n.includes('crédito')||n.includes('credito'))return '💳';
+ if(n.includes('débito')||n.includes('debito'))return '▣';
+ if(n.includes('conta'))return '🏦';
+ if(n.includes('parceiro'))return '🤝';
+ if(n.includes('boleto'))return '▤';
+ return '●';
+}
+
+function percentChange(current,previous){
+ const c=Number(current||0),p=Number(previous||0);
+ if(p===0)return c===0?0:null;
+ return ((c-p)/p)*100;
+}
+
+function drawPdfHeader(doc,title,subtitle=''){
+ const pageWidth=doc.internal.pageSize.getWidth();
+ doc.setFillColor(10,10,13);doc.rect(0,0,pageWidth,38,'F');
+ doc.setFillColor(215,25,32);doc.rect(0,0,5,38,'F');
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);
+ doc.text('GARAGEM GRAU CAR 096',14,14);
+ doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(218,218,222);doc.text(title,14,23);
+ if(subtitle){doc.setFontSize(8.5);doc.setTextColor(175,175,182);doc.text(subtitle,14,31);}
+}
+
+function drawPdfMetric(doc,x,y,w,label,value){
+ doc.setFillColor(247,247,249);doc.setDrawColor(226,226,231);doc.roundedRect(x,y,w,23,3,3,'FD');
+ doc.setTextColor(115,115,124);doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.text(String(label).toUpperCase(),x+5,y+7);
+ doc.setTextColor(28,28,34);doc.setFontSize(14);doc.text(String(value),x+5,y+17);
+}
+
+function drawPdfBars(doc,items,x,y,w,h){
+ const safe=items.filter(i=>Number(i.value||0)>0).slice(0,7);
+ if(!safe.length){doc.setTextColor(125,125,132);doc.setFontSize(8);doc.text('Sem dados suficientes para o gráfico.',x,y+8);return;}
+ const max=Math.max(1,...safe.map(i=>Number(i.value||0)));
+ const gap=4,barW=(w-gap*(safe.length-1))/safe.length;
+ safe.forEach((item,i)=>{
+  const bh=Math.max(3,(Number(item.value||0)/max)*(h-16));const bx=x+i*(barW+gap),by=y+h-12-bh;
+  doc.setFillColor(231,34,58);doc.roundedRect(bx,by,barW,bh,1.5,1.5,'F');
+  doc.setTextColor(80,80,88);doc.setFontSize(6.5);doc.text(String(item.label).slice(0,12),bx,y+h-5,{maxWidth:barW});
+ });
 }
 
 
@@ -2701,6 +2793,30 @@ function Dashboard({
     ).slice(0,10)===today
   );
 
+ const openAppointments=
+  appointments.filter(a=>a.status!=='concluido');
+
+ const todayAppointments=
+  openAppointments.filter(a=>
+   String(a.scheduled_at||'').slice(0,10)===today
+  );
+
+ const openAppointmentCount=new Set(openAppointments.map(a=>a.appointment_group_id||a.id)).size;
+ const todayAppointmentCount=new Set(todayAppointments.map(a=>a.appointment_group_id||a.id)).size;
+
+ const countAppointmentGroups=status=>
+  new Set(
+   appointments
+    .filter(a=>a.status===status)
+    .map(a=>a.appointment_group_id||a.id)
+  ).size;
+
+ const appointmentStatusCounts={
+  agendado:countAppointmentGroups('agendado'),
+  confirmado:countAppointmentGroups('confirmado'),
+  em_atendimento:countAppointmentGroups('em_atendimento')
+ };
+
  const revenue=
   completedOrders.reduce(
    (s,o)=>
@@ -2717,43 +2833,148 @@ function Dashboard({
    0
   );
 
- return <section>
+ const operationalFlowTotal=completedOrders.length+openAppointmentCount;
+ const completionRate=
+  operationalFlowTotal
+   ?Math.round((completedOrders.length/operationalFlowTotal)*100)
+   :0;
+
+ const serviceRanking=
+  services
+   .map(service=>({
+    name:service.name,
+    count:completedOrders.filter(
+     o=>o.service_id===service.id
+    ).length
+   }))
+   .filter(x=>x.count>0)
+   .sort((a,b)=>b.count-a.count)
+   .slice(0,5);
+
+ const maxServiceCount=
+  Math.max(1,...serviceRanking.map(x=>x.count));
+
+ const dateLabel=
+  new Date().toLocaleDateString(
+   'pt-BR',
+   {
+    weekday:'long',
+    day:'2-digit',
+    month:'long'
+   }
+  );
+
+ return <section className="dashboardPage">
+
+  <div className="dashboardWelcome">
+   <div>
+    <span className="dashboardEyebrow">CENTRAL OPERACIONAL</span>
+    <h2>
+     Olá, {String(profile?.full_name||'equipe').split(' ')[0]}.
+    </h2>
+    <p>
+     Visão geral da operação · {dateLabel}
+    </p>
+   </div>
+
+   <div className="liveBadge">
+    <span className="liveDot"/>
+    Sistema online
+   </div>
+  </div>
 
   <div className="cards">
 
    <Card
     t="Clientes"
     v={clients.length}
+    I={Users}
+    hint="Base cadastrada"
    />
 
    <Card
     t="Veículos"
     v={vehicles.length}
-   />
-
-   <Card
-    t="Agendamentos"
-    v={
-     appointments.filter(
-      a=>a.status!=='concluido'
-     ).length
-    }
-   />
-
-   <Card
-    t="Serviços hoje"
-    v={todayOrders.length}
+    I={Car}
+    hint="Veículos vinculados"
    />
 
    {profile?.role!=='administrativo'&&
     <Card
      t="Faturamento registrado"
      v={money(revenue)}
+     I={Wallet}
+     hint="Serviços concluídos"
     />
    }
 
+   <Card
+    t="Serviços hoje"
+    v={todayOrders.length}
+    I={CheckCircle2}
+    hint="Concluídos hoje"
+   />
+
+   <Card
+    t="Agendamentos"
+    v={openAppointmentCount}
+    I={CalendarDays}
+    hint={`${todayAppointmentCount} para hoje`}
+   />
+
   </div>
 
+  <div className="appointmentStatusGrid">
+   <div className="appointmentStatusCard scheduled"><CalendarDays size={18}/><span>Agendados</span><strong>{appointmentStatusCounts.agendado}</strong></div>
+   <div className="appointmentStatusCard confirmed"><CheckCircle2 size={18}/><span>Confirmados</span><strong>{appointmentStatusCounts.confirmado}</strong></div>
+   <div className="appointmentStatusCard serving"><Clock3 size={18}/><span>Em atendimento</span><strong>{appointmentStatusCounts.em_atendimento}</strong></div>
+  </div>
+
+  <div className="dashboardGrid">
+
+   <Panel title="Desempenho operacional">
+    <div className="performanceBlock">
+     <div className="performanceRing" style={{'--progress':`${completionRate}%`}}>
+      <div>
+       <strong>{completionRate}%</strong>
+       <span>conclusão</span>
+      </div>
+     </div>
+
+     <div className="performanceCopy">
+      <span className="dashboardEyebrow">FLUXO DE SERVIÇOS</span>
+      <h3>{completedOrders.length} serviços concluídos</h3>
+      <p>
+       Indicador calculado considerando os serviços concluídos e os agendamentos que ainda estão abertos.
+      </p>
+      <div className="miniStats">
+       <span><b>{orders.length}</b> registrados</span>
+       <span><b>{openAppointmentCount}</b> agendamentos abertos</span>
+      </div>
+     </div>
+    </div>
+   </Panel>
+
+   <Panel title="Serviços mais realizados">
+    <div className="rankingList">
+     {serviceRanking.length===0
+      ?<p className="hint">Ainda não há serviços concluídos para gerar o ranking.</p>
+      :serviceRanking.map((item,index)=>
+       <div className="rankingItem" key={item.name}>
+        <div className="rankingMeta">
+         <span>{String(index+1).padStart(2,'0')} · {item.name}</span>
+         <b>{item.count}</b>
+        </div>
+        <div className="rankingTrack">
+         <span style={{width:`${(item.count/maxServiceCount)*100}%`}}/>
+        </div>
+       </div>
+      )
+     }
+    </div>
+   </Panel>
+
+  </div>
 
   <Panel title="Próximos agendamentos">
 
@@ -2767,48 +2988,37 @@ function Dashboard({
     ]}
    >
 
-    {appointments
-     .filter(
-      a=>a.status!=='concluido'
-     )
+    {openAppointments
      .slice(0,8)
      .map(a=>
       <tr key={a.id}>
 
+       <td>{dt(a.scheduled_at)}</td>
+
        <td>
-        {dt(a.scheduled_at)}
+        {clients.find(c=>c.id===a.client_id)?.name||'-'}
        </td>
 
        <td>
-        {
-         clients.find(
-          c=>c.id===a.client_id
-         )?.name||'-'
-        }
+        {vehicles.find(v=>v.id===a.vehicle_id)?.plate||'-'}
        </td>
 
        <td>
-        {
-         vehicles.find(
-          v=>v.id===a.vehicle_id
-         )?.plate||'-'
-        }
+        {services.find(s=>s.id===a.service_id)?.name||'-'}
        </td>
 
-       <td>
-        {
-         services.find(
-          s=>s.id===a.service_id
-         )?.name||'-'
-        }
-       </td>
-
-       <td>
-        <Status value={a.status}/>
-       </td>
+       <td><Status value={a.status}/></td>
 
       </tr>
      )
+    }
+
+    {openAppointments.length===0&&
+     <tr>
+      <td colSpan="5" className="emptyStateCell">
+       Nenhum agendamento pendente no momento.
+      </td>
+     </tr>
     }
 
    </Table>
@@ -2817,6 +3027,7 @@ function Dashboard({
 
  </section>
 }
+
 /* =========================================================
    CLIENTES
 ========================================================= */
@@ -2967,14 +3178,14 @@ function Clients({
 
    {!edit&&
     <div className="formGrid">
-     <input
+     <IconField I={User}><input
       required
       placeholder="Nome completo"
       value={f.name}
       onChange={e=>setF({...f,name:e.target.value})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={Phone}><input
       required
       type="tel"
       inputMode="tel"
@@ -2982,24 +3193,24 @@ function Clients({
       placeholder="Telefone"
       value={f.phone}
       onChange={e=>setF({...f,phone:maskPhoneBR(e.target.value)})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={Mail}><input
       required
       type="email"
       placeholder="E-mail"
       value={f.email}
       onChange={e=>setF({...f,email:e.target.value})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={IdCard}><input
       required
       inputMode="numeric"
       maxLength={18}
       placeholder="CPF/CNPJ"
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
-     />
+     /></IconField>
     </div>
    }
 
@@ -3074,14 +3285,14 @@ function Clients({
    >
 
     <div className="formGrid">
-     <input
+     <IconField I={User}><input
       required
       placeholder="Nome completo"
       value={f.name}
       onChange={e=>setF({...f,name:e.target.value})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={Phone}><input
       required
       type="tel"
       inputMode="tel"
@@ -3089,24 +3300,24 @@ function Clients({
       placeholder="Telefone"
       value={f.phone}
       onChange={e=>setF({...f,phone:maskPhoneBR(e.target.value)})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={Mail}><input
       required
       type="email"
       placeholder="E-mail"
       value={f.email}
       onChange={e=>setF({...f,email:e.target.value})}
-     />
+     /></IconField>
 
-     <input
+     <IconField I={IdCard}><input
       required
       inputMode="numeric"
       maxLength={18}
       placeholder="CPF/CNPJ"
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
-     />
+     /></IconField>
     </div>
 
     <div className="inline">
@@ -3417,7 +3628,7 @@ function Vehicles({
     }
    >
     <option value="">
-     Cliente
+     👤 Cliente
     </option>
 
     {clients.map(c=>
@@ -3441,7 +3652,7 @@ function Vehicles({
     }
    >
     <option value="">
-     Categoria do veículo
+     🚘 Categoria do veículo
     </option>
 
     {vehicleCategories.map(c=>
@@ -3465,11 +3676,11 @@ function Vehicles({
     <input
      key={k}
      placeholder={{
-      plate:'Placa',
-      brand:'Marca',
-      model:'Modelo',
-      color:'Cor',
-      year:'Ano'
+      plate:'▣ Placa',
+      brand:'◆ Marca',
+      model:'🚗 Modelo',
+      color:'◉ Cor',
+      year:'◷ Ano'
      }[k]}
      value={f[k]}
      onChange={e=>
@@ -3503,7 +3714,7 @@ function Vehicles({
     <div className="categoryCreate">
 
      <input
-      placeholder="Ex.: SUV, PICKUP, RET, SEDAN, MOTO..."
+      placeholder="🏷 Categoria · Ex.: SUV, PICKUP, RET, SEDAN, MOTO..."
       value={categoryName}
       onChange={e=>
        setCategoryName(e.target.value)
@@ -3729,6 +3940,133 @@ function Vehicles({
 }
 
 
+function VehicleReferenceImage({vehicle,category}){
+ const [state,setState]=useState({loading:true,url:'',title:'',source:'',pageUrl:''});
+ const [imageFailed,setImageFailed]=useState(false);
+
+ useEffect(()=>{
+  const controller=new AbortController();
+  const brand=String(vehicle.brand||'').trim();
+  const rawModel=String(vehicle.model||'').trim();
+  const year=String(vehicle.year||'').trim();
+  setImageFailed(false);
+  if(!brand&&!rawModel){setState({loading:false,url:'',title:'',source:'',pageUrl:''});return()=>controller.abort();}
+
+  const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  let model=rawModel.replace(new RegExp(`^${esc(brand)}\\s+`,'i'),'').trim();
+  const trimWords=/\b(YOUNG|LTZ|LT|LS|PREMIER|COMFORTLINE|HIGHLINE|TRENDLINE|XLS|XLT|LIMITED|EX|LX|LXS|TOURING|ADVANCE|AUDACE|DRIVE|ATTRACTIVE|ESSENCE|WAY|FIRE|ECONOMY|JOY|ACTIV|RS|SS|FLEX|AUTOMATICO|AUTOMÁTICO|MANUAL)\b/gi;
+  const baseModel=model.replace(trimWords,' ').replace(/\s+/g,' ').trim()||model;
+  const upper=`${brand} ${rawModel}`.toUpperCase();
+  const aliases=[];
+  if(upper.includes('EVOQUE'))aliases.push('Range Rover Evoque','Land Rover Range Rover Evoque');
+  if(upper.includes('PALIO'))aliases.push('Fiat Palio');
+  if(upper.includes('CRUZE'))aliases.push('Chevrolet Cruze');
+  if(upper.includes('STRADA'))aliases.push('Fiat Strada');
+  if(upper.includes('SAVEIRO'))aliases.push('Volkswagen Saveiro');
+  if(upper.includes('HILUX'))aliases.push('Toyota Hilux');
+  if(upper.includes('S10'))aliases.push('Chevrolet S-10','Chevrolet S10');
+
+  const queries=[...aliases,`${brand} ${model}`,`${brand} ${baseModel}`]
+   .map(x=>x.replace(/\s+/g,' ').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
+  const stop=new Set(['land','rover','chevrolet','fiat','volkswagen','vw','ford','toyota','honda','renault','hyundai','jeep','nissan','mitsubishi','mercedes','benz','bmw','audi','carro','automovel','automóvel']);
+  const modelTokens=baseModel.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/[^a-z0-9]+/).filter(t=>t.length>2&&!stop.has(t));
+  const brandTokens=brand.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/[^a-z0-9]+/).filter(t=>t.length>2);
+  const norm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  async function summary(lang,key,title){
+   try{
+    const res=await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key||title.replace(/\s+/g,'_'))}`,{signal:controller.signal,headers:{Accept:'application/json'}});
+    if(!res.ok)return null;
+    const d=await res.json();
+    let url=d?.originalimage?.source||d?.thumbnail?.source||'';
+    if(url.startsWith('//'))url=`https:${url}`;
+    if(!url)return null;
+    return {url,title:d?.title||title,source:`Wikipedia (${lang.toUpperCase()})`,pageUrl:d?.content_urls?.desktop?.page||''};
+   }catch{return null;}
+  }
+
+  async function wikipediaSearch(lang,q){
+   const res=await fetch(`https://${lang}.wikipedia.org/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=8`,{signal:controller.signal,headers:{Accept:'application/json'}});
+   if(!res.ok)return null;
+   const data=await res.json();
+   const pages=Array.isArray(data?.pages)?data.pages:[];
+   const ranked=pages.map(pg=>{
+    const hay=norm(`${pg.title||''} ${pg.description||''} ${pg.excerpt||''}`);
+    const modelHits=modelTokens.filter(t=>hay.includes(t)).length;
+    const brandHits=brandTokens.filter(t=>hay.includes(t)).length;
+    const exact=norm(pg.title).includes(norm(baseModel))?4:0;
+    return {pg,score:modelHits*5+brandHits*2+exact,modelHits};
+   }).filter(x=>modelTokens.length?x.modelHits>0:true).sort((a,b)=>b.score-a.score);
+   for(const item of ranked){
+    const pg=item.pg;
+    // A API de busca devolve miniaturas pequenas. Primeiro buscamos a página
+    // completa para usar originalimage e evitar fotos ampliadas/embaçadas.
+    const full=await summary(lang,pg.key,pg.title||q);
+    if(full)return full;
+    let url=pg?.thumbnail?.url||'';
+    if(url.startsWith('//'))url=`https:${url}`;
+    if(url)return {url,title:pg.title||q,source:`Wikipedia (${lang.toUpperCase()})`,pageUrl:`https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pg.key||String(pg.title||'').replace(/\s+/g,'_'))}`};
+   }
+   return null;
+  }
+
+  async function find(){
+   try{
+    for(const q of queries){
+     for(const lang of ['pt','en']){
+      const found=await wikipediaSearch(lang,q);
+      if(found){setState({loading:false,...found});return;}
+     }
+    }
+    setState({loading:false,url:'',title:'',source:'',pageUrl:''});
+   }catch(e){if(e.name!=='AbortError')setState({loading:false,url:'',title:'',source:'',pageUrl:''});}
+  }
+
+  setState({loading:true,url:'',title:'',source:'',pageUrl:''});
+  find();
+  return()=>controller.abort();
+ },[vehicle.brand,vehicle.model,vehicle.year]);
+
+ if(state.loading)return <div className="vehicleReference loading"><div className="vehicleImageSkeleton"/><div><span className="dashboardEyebrow">FOTO DO MODELO</span><b>Localizando {vehicle.brand} {vehicle.model}...</b><small>Buscando uma referência específica do modelo cadastrado.</small></div></div>;
+ if(!state.url||imageFailed)return <div className="vehiclePhotoUnavailable"><div className="vehiclePhotoPlaceholder"><Car size={62}/></div><div><span className="dashboardEyebrow">FOTO DO MODELO</span><h4>{vehicle.brand} {vehicle.model} {vehicle.year}</h4><p>Não encontrei uma fotografia confiável deste modelo. Para evitar mostrar um veículo diferente, nenhuma imagem genérica foi exibida.</p><div className="vehicleBlueprintMeta"><span>{category?.name||'Categoria não informada'}</span><span>{vehicle.color||'Cor não informada'}</span><span>Placa {vehicle.plate||'-'}</span></div></div></div>;
+ return <div className="vehicleReference"><div className="vehicleReferenceImage"><img src={state.url} alt={`${vehicle.brand||''} ${vehicle.model||''} ${vehicle.year||''}`.trim()} onError={()=>setImageFailed(true)}/><span>Foto de referência do modelo</span></div><div className="vehicleReferenceInfo"><span className="dashboardEyebrow">REFERÊNCIA VISUAL DO MODELO</span><h4>{vehicle.brand} {vehicle.model} {vehicle.year}</h4><p>Modelo identificado como <b>{state.title}</b>. A foto pode representar outro ano, versão, cor ou acabamento, mas a busca exige correspondência com o modelo cadastrado.</p><div className="vehicleBlueprintMeta"><span>{category?.name||'Categoria não informada'}</span><span>{vehicle.color||'Cor não informada'}</span><span>Placa {vehicle.plate||'-'}</span></div><small>Fonte visual: {state.source}</small></div></div>;
+}
+
+function VehicleBlueprint({vehicle,category}){
+ const type=String(category?.name||'').toLowerCase();
+ const isPickup=type.includes('pickup')||type.includes('picape');
+ const isMoto=type.includes('moto');
+ const isSuv=type.includes('suv')||type.includes('utilit');
+ const isHatch=type.includes('hatch');
+ const path=isPickup
+  ?'M120 170 L165 118 L355 112 L420 142 L565 145 L610 170 L625 205 L600 218 L150 218 L105 198 Z'
+  :isSuv
+   ?'M105 180 L155 112 L405 102 L510 132 L590 170 L610 205 L585 220 L135 220 L92 202 Z'
+   :isHatch
+    ?'M115 182 L180 122 L365 110 L470 140 L555 176 L575 207 L548 220 L140 220 L100 201 Z'
+    :'M105 183 L185 128 L390 116 L505 148 L575 180 L590 207 L565 220 L135 220 L95 202 Z';
+ return <div className="vehicleBlueprint">
+  <div className="vehicleBlueprintHead"><span>ILUSTRAÇÃO TÉCNICA</span><b>{vehicle.brand||'Veículo'} {vehicle.model||''} {vehicle.year||''}</b></div>
+  {isMoto?
+   <svg viewBox="0 0 700 280" role="img" aria-label="Ilustração aproximada da motocicleta">
+    <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round">
+     <circle cx="210" cy="205" r="55"/><circle cx="500" cy="205" r="55"/><path d="M210 205 L305 120 L395 205 L500 205 L430 105 L350 105 L305 120 M430 105 L485 80 M300 120 L270 90"/>
+    </g>
+   </svg>
+   :<svg viewBox="0 0 700 280" role="img" aria-label="Ilustração aproximada do veículo">
+    <g fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
+     <path d={path}/><circle cx="205" cy="214" r="48"/><circle cx="510" cy="214" r="48"/>
+     <path d="M205 166 A48 48 0 0 1 253 214 M462 214 A48 48 0 0 1 510 166" opacity=".7"/>
+     <path d="M190 125 L245 78 L390 78 L455 128" opacity=".75"/>
+     <path d="M265 82 L285 128 M385 82 L405 128" opacity=".55"/>
+     <path d="M135 190 L175 190 M545 190 L590 190" opacity=".55"/>
+    </g>
+   </svg>}
+  <div className="vehicleBlueprintMeta"><span>{category?.name||'Categoria não informada'}</span><span>{vehicle.color||'Cor não informada'}</span><span>Placa {vehicle.plate||'-'}</span></div>
+  <small>Desenho ilustrativo aproximado, gerado a partir da categoria e dos dados cadastrados; não representa necessariamente o desenho exato do modelo.</small>
+ </div>;
+}
+
 function VehicleDetail({
  vehicle,
  category,
@@ -3743,6 +4081,8 @@ function VehicleDetail({
   title={`Veículo ${vehicle.plate}`}
   onClose={onClose}
  >
+
+  <VehicleReferenceImage vehicle={vehicle} category={category}/>
 
   <div className="detailGrid">
 
@@ -3935,7 +4275,7 @@ function Services({
   <div className="formGrid">
 
    <input
-    placeholder="Nome do serviço"
+    placeholder="🔧 Nome do serviço"
     value={f.name}
     onChange={e=>
      setF({
@@ -3955,7 +4295,7 @@ function Services({
     }
    >
     <option value="">
-     Categoria do veículo
+     🚘 Categoria do veículo
     </option>
 
     {vehicleCategories.map(c=>
@@ -3972,7 +4312,7 @@ function Services({
     type="number"
     min="0"
     step="0.01"
-    placeholder="Preço (R$)"
+    placeholder="R$ Preço"
     value={f.price}
     onChange={e=>
      setF({
@@ -3987,7 +4327,7 @@ function Services({
     min="0"
     max="100"
     step="1"
-    placeholder="Desconto (%)"
+    placeholder="% Desconto"
     value={f.discount_percent}
     onChange={e=>
      setF({
@@ -3998,7 +4338,7 @@ function Services({
    />
 
    <input
-    placeholder="Descrição"
+    placeholder="▤ Descrição"
     value={f.description}
     onChange={e=>
      setF({
@@ -4370,7 +4710,7 @@ function History({
     <SearchBox
      value={search}
      onChange={setSearch}
-     placeholder="Cliente, placa, veículo, serviço ou funcionário"
+     placeholder="⌕ Cliente, placa, veículo, serviço ou funcionário"
     />
 
     <input
@@ -5484,7 +5824,7 @@ function Appointments({
    >
 
     <option value="">
-     Cliente *
+     👤 Cliente *
     </option>
 
     {clients.map(c=>
@@ -5513,7 +5853,7 @@ function Appointments({
    >
 
     <option value="">
-     Veículo *
+     🚗 Veículo *
     </option>
 
     {available.map(v=>{
@@ -5548,7 +5888,7 @@ function Appointments({
      <summary>
       {f.service_ids.length
        ?`${f.service_ids.length} serviço(s) selecionado(s) *`
-       :'Serviços *'
+       :'🔧 Serviços *'
       }
      </summary>
 
@@ -5639,7 +5979,7 @@ function Appointments({
    >
 
     <option value="">
-     Funcionário responsável *
+     👷 Funcionário responsável *
     </option>
 
     {employees
@@ -5662,7 +6002,7 @@ function Appointments({
     <input
      type="text"
      inputMode="numeric"
-     placeholder="DD/MM/AAAA *"
+     placeholder="📅 DD/MM/AAAA *"
      maxLength={10}
      value={f.scheduled_date}
      onChange={e=>
@@ -5677,7 +6017,7 @@ function Appointments({
     <input
      type="text"
      inputMode="numeric"
-     placeholder="HH:MM *"
+     placeholder="◷ HH:MM *"
      maxLength={5}
      value={f.scheduled_time}
      onChange={e=>{
@@ -5762,7 +6102,7 @@ function Appointments({
     min="0"
     max="100"
     step="1"
-    placeholder="Desconto (%)"
+    placeholder="% Desconto"
     value={f.discount_percent}
     onChange={e=>{
 
@@ -5793,7 +6133,7 @@ function Appointments({
     type="number"
     min="0"
     step="0.01"
-    placeholder="Valor cobrado *"
+    placeholder="R$ Valor cobrado *"
     value={f.charged_amount}
     onChange={e=>
      setF({
@@ -5815,7 +6155,7 @@ function Appointments({
    >
 
     <option value="">
-     Forma de pagamento *
+     💳 Forma de pagamento *
     </option>
 
     {paymentMethods
@@ -5834,7 +6174,7 @@ function Appointments({
 
 
    <input
-    placeholder="Observações"
+    placeholder="▤ Observações"
     value={f.notes}
     onChange={e=>
      setF({
@@ -5970,7 +6310,7 @@ function Appointments({
     />
 
     <input
-     placeholder="Cliente"
+     placeholder="👤 Cliente"
      value={filters.client}
      onChange={e=>
       setFilters({
@@ -5981,7 +6321,7 @@ function Appointments({
     />
 
     <input
-     placeholder="Veículo / placa"
+     placeholder="🚗 Veículo / placa"
      value={filters.vehicle}
      onChange={e=>
       setFilters({
@@ -5992,7 +6332,7 @@ function Appointments({
     />
 
     <input
-     placeholder="Serviço"
+     placeholder="🔧 Serviço"
      value={filters.service}
      onChange={e=>
       setFilters({
@@ -6003,7 +6343,7 @@ function Appointments({
     />
 
     <input
-     placeholder="Funcionário"
+     placeholder="👷 Funcionário"
      value={filters.employee}
      onChange={e=>
       setFilters({
@@ -6196,17 +6536,20 @@ function Employees({
   phone:'',
   position:'',
   commission_percent:'0',
-  active:true
+  active:true,
+  photo_url:''
  };
 
  const [f,setF]=useState(empty);
  const [edit,setEdit]=useState(null);
  const [search,setSearch]=useState('');
  const [detail,setDetail]=useState(null);
+ const [photoFile,setPhotoFile]=useState(null);
 
  function closeEdit(){
   setEdit(null);
   setF(empty);
+  setPhotoFile(null);
  }
 
  async function save(){
@@ -6220,6 +6563,11 @@ function Employees({
    commission_percent:
     Number(f.commission_percent||0)
   };
+
+  if(photoFile){
+   try{p.photo_url=await uploadIdentityPhoto(photoFile,'employees');}
+   catch(e){return alert(e.message||'Não foi possível enviar a foto.');}
+  }
 
   if(edit){
 
@@ -6243,6 +6591,7 @@ function Employees({
   }
 
   setF(empty);
+  setPhotoFile(null);
   setEdit(null);
  }
 
@@ -6281,10 +6630,11 @@ function Employees({
 
 
  const employeeFields=
+  <>
   <div className="formGrid">
 
    <input
-    placeholder="Nome"
+    placeholder="👤 Nome"
     value={f.name}
     onChange={e=>
      setF({
@@ -6295,7 +6645,7 @@ function Employees({
    />
 
    <input
-    placeholder="Telefone"
+    placeholder="☎ Telefone"
     value={f.phone}
     onChange={e=>
      setF({
@@ -6306,7 +6656,7 @@ function Employees({
    />
 
    <input
-    placeholder="Função"
+    placeholder="◆ Função"
     value={f.position}
     onChange={e=>
      setF({
@@ -6318,7 +6668,7 @@ function Employees({
 
    <input
     type="number"
-    placeholder="Comissão (%)"
+    placeholder="% Comissão"
     value={f.commission_percent}
     onChange={e=>
      setF({
@@ -6328,7 +6678,9 @@ function Employees({
     }
    />
 
-  </div>;
+  </div>
+  <PhotoPicker file={photoFile} currentUrl={f.photo_url} onChange={setPhotoFile} label="Foto de identificação do integrante"/>
+  </>;
 
 
  return <section>
@@ -6385,7 +6737,7 @@ function Employees({
 
      return <tr key={e.id}>
 
-      <td>{e.name}</td>
+      <td><div className="personCell">{e.photo_url?<img src={e.photo_url} alt=""/>:<span className="avatarFallback"><User size={15}/></span>}<b>{e.name}</b></div></td>
       <td>{e.position||'-'}</td>
       <td>{e.phone||'-'}</td>
       <td>{e.commission_percent||0}%</td>
@@ -6418,8 +6770,10 @@ function Employees({
              position:e.position||'',
              commission_percent:
               e.commission_percent||0,
-             active:e.active!==false
+             active:e.active!==false,
+             photo_url:e.photo_url||''
             });
+            setPhotoFile(null);
            }
           :null
         }
@@ -6481,6 +6835,8 @@ function Employees({
     title={`Funcionário: ${employee.name}`}
     onClose={()=>setDetail(null)}
    >
+
+    {employee.photo_url&&<div className="profileHero"><img src={employee.photo_url} alt={`Foto de ${employee.name}`}/><div><span className="dashboardEyebrow">IDENTIFICAÇÃO</span><strong>{employee.name}</strong><small>{employee.position||'Integrante da equipe'}</small></div></div>}
 
     <div className="detailGrid">
 
@@ -6622,11 +6978,16 @@ useState(today.split('-').reverse().join('/'));
  const [selectedYear,setSelectedYear]=
   useState(today.slice(0,4));
 
- const [view,setView]=
-  useState('day');
+ const firstDayOfMonth=`${today.slice(0,8)}01`;
+ const [rangeFrom,setRangeFrom]=useState(firstDayOfMonth);
+ const [rangeTo,setRangeTo]=useState(today);
+ const [rangeFromText,setRangeFromText]=useState(isoDateToBR(firstDayOfMonth));
+ const [rangeToText,setRangeToText]=useState(isoDateToBR(today));
 
  const [methodName,setMethodName]=
   useState('');
+
+ const [evolutionMode,setEvolutionMode]=useState('day');
 
 
  const completedOrders=
@@ -6730,20 +7091,8 @@ useState(today.split('-').reverse().join('/'));
 
  const selectedEntries=
   allEntries.filter(e=>{
-
-   const d=
-    String(e.paid_at).slice(0,10);
-
-   if(view==='day'){
-    return d===selectedDay;
-   }
-
-   if(view==='month'){
-    return d.slice(0,7)===selectedMonth;
-   }
-
-   return d.slice(0,4)===selectedYear;
-
+   const d=String(e.paid_at).slice(0,10);
+   return (!rangeFrom||d>=rangeFrom)&&(!rangeTo||d<=rangeTo);
   });
 
 
@@ -6879,22 +7228,28 @@ useState(today.split('-').reverse().join('/'));
  ]);
 
 
- const selectedLabel=
-  view==='day'
-   ?dateOnly(selectedDay)
+ const evolutionPoints=useMemo(()=>{
+  const map={};
+  selectedEntries.forEach(e=>{
+   const date=String(e.paid_at).slice(0,10);
+   const key=evolutionMode==='day'?date:evolutionMode==='month'?date.slice(0,7):date.slice(0,4);
+   map[key]=(map[key]||0)+Number(e.amount||0);
+  });
+  return Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>({
+   key,
+   label:evolutionMode==='day'?`${key.slice(8,10)}/${key.slice(5,7)}`:evolutionMode==='month'?new Date(`${key}-01T12:00:00`).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}):key,
+   value
+  }));
+ },[selectedEntries,evolutionMode]);
 
-   :view==='month'
-    ?new Date(
-      `${selectedMonth}-01T12:00:00`
-     ).toLocaleDateString(
-      'pt-BR',
-      {
-       month:'long',
-       year:'numeric'
-      }
-     )
+ const evolutionMax=Math.max(1,...evolutionPoints.map(p=>p.value));
+ const evolutionPolyline=evolutionPoints.map((p,i)=>{
+  const x=evolutionPoints.length===1?500:40+(i*(920/(evolutionPoints.length-1)));
+  const y=205-(p.value/evolutionMax)*150;
+  return `${x},${y}`;
+ }).join(' ');
 
-    :selectedYear;
+ const selectedLabel=`${rangeFrom?isoDateToBR(rangeFrom):'início'} a ${rangeTo?isoDateToBR(rangeTo):'hoje'}`;
 
 
  async function closeDay(
@@ -7101,441 +7456,88 @@ useState(today.split('-').reverse().join('/'));
  }
 
 
+
+ function cashPdf(){
+  const doc=new jsPDF({orientation:'landscape'});
+  const subtitle=`Período: ${selectedLabel}  •  Emitido em ${new Date().toLocaleString('pt-BR')}`;
+  drawPdfHeader(doc,'Relatório de Caixa',subtitle);
+  const avg=selectedEntries.length?selectedTotal/selectedEntries.length:0;
+  drawPdfMetric(doc,14,45,58,'Total do período',money(selectedTotal));
+  drawPdfMetric(doc,76,45,48,'Atendimentos',selectedEntries.length);
+  drawPdfMetric(doc,128,45,58,'Ticket médio',money(avg));
+  drawPdfMetric(doc,190,45,72,'Formas utilizadas',selectedByMethod.length);
+  doc.setTextColor(40,40,46);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Distribuição por forma de pagamento',14,78);
+  drawPdfBars(doc,selectedByMethod.map(x=>({label:x.name,value:x.total})),14,82,118,52);
+  doc.text('Evolução do faturamento',150,78);
+  drawPdfBars(doc,evolutionPoints.map(x=>({label:x.label,value:x.value})),150,82,118,52);
+  autoTable(doc,{startY:145,margin:{left:14,right:14},head:[['Data/Hora','Forma de pagamento','Valor','Referência']],body:selectedEntries.map(e=>[dt(e.paid_at),paymentMethods.find(m=>m.id===e.payment_method_id)?.name||'Sem forma de pagamento',money(e.amount),e.order_id?.slice(0,8)||'-']),theme:'grid',styles:{fontSize:8,cellPadding:3,lineColor:[228,228,232],lineWidth:.15},headStyles:{fillColor:[215,25,32],textColor:[255,255,255]},alternateRowStyles:{fillColor:[248,248,250]}});
+  doc.save(`relatorio-caixa-${rangeFrom||'inicio'}-a-${rangeTo||'hoje'}.pdf`);
+ }
+
+ function cashExcel(){
+  const wb=XLSX.utils.book_new();
+  const avg=selectedEntries.length?selectedTotal/selectedEntries.length:0;
+  const dashboard=makeExcelDashboard({
+   title:'Dashboard Gerencial do Caixa',period:selectedLabel,
+   metrics:[{label:'Faturamento',value:money(selectedTotal)},{label:'Atendimentos',value:selectedEntries.length},{label:'Ticket médio',value:money(avg)},{label:'Formas utilizadas',value:selectedByMethod.length}],
+   sections:[
+    {title:'Distribuição por forma de pagamento',items:selectedByMethod.map(x=>({label:`${paymentSymbol(x.name)} ${x.name}`,value:x.total,display:money(x.total)}))},
+    {title:`Evolução do faturamento — ${evolutionMode==='day'?'por dia':evolutionMode==='month'?'por mês':'por ano'}`,items:evolutionPoints.map((x,i)=>({label:x.label,value:x.value,display:`${money(x.value)}${i?`  (${percentChange(x.value,evolutionPoints[i-1].value)>=0?'↑':'↓'} ${Math.abs(percentChange(x.value,evolutionPoints[i-1].value)||0).toFixed(1)}%)`:''}`}))}
+   ]
+  });
+  XLSX.utils.book_append_sheet(wb,dashboard,'Dashboard');
+  const methodRows=selectedByMethod.map(x=>({'Forma de pagamento':x.name,'Total':x.total,'Participação (%)':selectedTotal?(x.total/selectedTotal)*100:0}));
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(methodRows,[{width:28},{width:18},{width:18}]),'Formas de pagamento');
+  const evoRows=evolutionPoints.map((x,i)=>({'Período':x.label,'Faturamento':x.value,'Variação (%)':i?percentChange(x.value,evolutionPoints[i-1].value):0}));
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(evoRows,[{width:18},{width:20},{width:18}]),'Evolução');
+  const detailRows=selectedEntries.map(e=>({'Data/Hora':dt(e.paid_at),'Forma de pagamento':paymentMethods.find(m=>m.id===e.payment_method_id)?.name||'Sem forma de pagamento','Valor':Number(e.amount||0),'Referência':e.order_id?.slice(0,8)||'-'}));
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(detailRows,[{width:22},{width:28},{width:18},{width:18}]),'Movimentações');
+  XLSX.writeFile(wb,'relatorio-caixa-grau-car.xlsx');
+ }
+
  return <section>
 
-  <Panel
-   title="Resumo do caixa"
-   action={
-    <div className="inline">
-     <span className="hint">
-      Consulta: {selectedLabel}
-     </span>
-    </div>
-   }
-  >
-
-   <div className="cashSummary">
-
-    <div>
-     <span>Hoje</span>
-     <strong>
-      {money(todayTotal)}
-     </strong>
-    </div>
-
-    <div>
-     <span>Mês atual</span>
-     <strong>
-      {money(monthTotal)}
-     </strong>
-    </div>
-
-    <div>
-     <span>Período selecionado</span>
-     <strong>
-      {money(selectedTotal)}
-     </strong>
-    </div>
-
+  <Panel title="Selecionar período" action={<span className="hint">Consulta: {selectedLabel}</span>}>
+   <div className="rangeSelector">
+    <label><CalendarDays size={17}/><span>De</span><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={rangeFromText} onChange={e=>{const v=maskDateBR(e.target.value);setRangeFromText(v);setRangeFrom(brDateToIso(v));}}/></label>
+    <label><CalendarDays size={17}/><span>Até</span><input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={rangeToText} onChange={e=>{const v=maskDateBR(e.target.value);setRangeToText(v);setRangeTo(brDateToIso(v));}}/></label>
    </div>
-
   </Panel>
 
-
-  <Panel title="Consultar caixa">
-
-   <div
-    className="inline"
-    style={{
-     marginBottom:12,
-     flexWrap:'wrap'
-    }}
-   >
-
-    <button
-     className={
-      view==='day'
-       ?'primary'
-       :'secondary'
-     }
-     onClick={()=>setView('day')}
-    >
-     Dia
-    </button>
-
-    <button
-     className={
-      view==='month'
-       ?'primary'
-       :'secondary'
-     }
-     onClick={()=>setView('month')}
-    >
-     Mês
-    </button>
-
-    <button
-     className={
-      view==='year'
-       ?'primary'
-       :'secondary'
-     }
-     onClick={()=>setView('year')}
-    >
-     Ano
-    </button>
-
-   </div>
-
-
-   {view==='day'&&
-    <div className="formGrid two">
-     <label>
-      Dia
-      <input
-  type="text"
-  inputMode="numeric"
-  placeholder="dd/mm/aaaa"
-  maxLength={10}
-  value={selectedDayText}
-  onChange={e=>{
-    const masked=maskDateBR(e.target.value);
-
-    setSelectedDayText(masked);
-
-    const iso=brDateToIso(masked);
-
-    if(iso){
-      setSelectedDay(iso);
-    }
-  }}
-/>
-     </label>
-    </div>
-   }
-
-
-   {view==='month'&&
-    <div className="formGrid two">
-     <label>
-      Mês
-      <input
-       type="month"
-       value={selectedMonth}
-       onChange={e=>
-        setSelectedMonth(
-         e.target.value
-        )
-       }
-      />
-     </label>
-    </div>
-   }
-
-
-   {view==='year'&&
-    <div className="formGrid two">
-     <label>
-      Ano
-      <select
-       value={selectedYear}
-       onChange={e=>
-        setSelectedYear(
-         e.target.value
-        )
-       }
-      >
-       {years.map(y=>
-        <option
-         key={y}
-         value={y}
-        >
-         {y}
-        </option>
-       )}
-      </select>
-     </label>
-    </div>
-   }
-
-
+  <Panel title="Resumo do caixa" action={<div className="reportBtns"><button className="secondary" onClick={cashPdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={cashExcel}><FileDown size={17}/>Excel</button></div>}>
    <div className="cashSummary">
-
-    <div>
-     <span>Total do período</span>
-     <strong>
-      {money(selectedTotal)}
-     </strong>
-    </div>
-
-    {selectedByMethod.map(x=>
-     <div key={x.name}>
-      <span>{x.name}</span>
-      <strong>
-       {money(x.total)}
-      </strong>
-     </div>
-    )}
-
+    <div><span>Hoje</span><strong>{money(todayTotal)}</strong></div>
+    <div><span>Mês atual</span><strong>{money(monthTotal)}</strong></div>
+    <div><span>Período selecionado</span><strong>{money(selectedTotal)}</strong></div>
    </div>
-
-
-   {view!=='day'&&
-    <Table
-     headers={[
-      'Data',
-      'Total',
-      'Por forma de pagamento'
-     ]}
-    >
-
-     {dailyBreakdown.map(row=>
-      <tr key={row.date}>
-
-       <td>
-        {dateOnly(row.date)}
-       </td>
-
-       <td>
-        <b>
-         {money(row.total)}
-        </b>
-       </td>
-
-       <td>
-        <div className="serviceTags">
-
-         {Object.entries(
-          row.byMethod
-         ).map(
-          ([name,value])=>
-           <span key={name}>
-            {name}: {money(value)}
-           </span>
-         )}
-
-        </div>
-       </td>
-
-      </tr>
-     )}
-
-
-     {dailyBreakdown.length===0&&
-      <tr>
-       <td colSpan="3">
-        Nenhum faturamento encontrado no período.
-       </td>
-      </tr>
-     }
-
-    </Table>
-   }
-
-
-   {view==='day'&&
-    <Table
-     headers={[
-      'Data/Hora',
-      'Forma',
-      'Valor',
-      'Ordem'
-     ]}
-    >
-
-     {selectedEntries.map(e=>
-      <tr key={e.key}>
-
-       <td>{dt(e.paid_at)}</td>
-
-       <td>
-        {
-         paymentMethods.find(
-          m=>
-           m.id===
-           e.payment_method_id
-         )?.name||
-         'Sem forma de pagamento'
-        }
-       </td>
-
-       <td>{money(e.amount)}</td>
-
-       <td>
-        {e.order_id?.slice(0,8)||'-'}
-       </td>
-
-      </tr>
-     )}
-
-
-     {selectedEntries.length===0&&
-      <tr>
-       <td colSpan="4">
-        Nenhum faturamento encontrado para o dia.
-       </td>
-      </tr>
-     }
-
-    </Table>
-   }
-
   </Panel>
 
-
-  {canAdmin&&
-   <Panel
-    title="Formas de pagamento"
-    action={
-     <button
-      className="primary"
-      onClick={addMethod}
-     >
-      <Plus size={17}/>
-      Adicionar
-     </button>
-    }
-   >
-
-    <div className="formGrid two">
-
-     <input
-      placeholder="Ex.: PIX, Dinheiro, Cartão"
-      value={methodName}
-      onChange={e=>
-       setMethodName(e.target.value)
-      }
-     />
-
+  <div className="cashVisualGrid">
+   <Panel title="Distribuição por forma de pagamento">
+    <div className="rankingList">
+     {selectedByMethod.length===0?<p className="hint">Sem movimentações no período selecionado.</p>:selectedByMethod.map(item=>{const max=Math.max(1,...selectedByMethod.map(x=>x.total));const share=selectedTotal?(item.total/selectedTotal)*100:0;return <div className="rankingItem paymentRanking" key={item.name}><div className="rankingMeta"><span><i>{paymentSymbol(item.name)}</i>{item.name}<small>{share.toFixed(1)}%</small></span><b>{money(item.total)}</b></div><div className="rankingTrack"><span style={{width:`${(item.total/max)*100}%`}}/></div></div>;})}
     </div>
-
-
-    <div className="methodChips">
-
-     {paymentMethods.map(m=>
-      <span key={m.id}>
-
-       {m.name}
-
-       <button
-        onClick={()=>
-         remove(
-          'payment_methods',
-          m.id,
-          setPaymentMethods,
-          'Excluiu forma de pagamento'
-         )
-        }
-       >
-        <X size={14}/>
-       </button>
-
-      </span>
-     )}
-
-    </div>
-
    </Panel>
-  }
 
+   <Panel title="Evolução do faturamento" action={<div className="segmentedControl compact"><button className={evolutionMode==='day'?'active':''} onClick={()=>setEvolutionMode('day')}>Dias</button><button className={evolutionMode==='month'?'active':''} onClick={()=>setEvolutionMode('month')}>Meses</button><button className={evolutionMode==='year'?'active':''} onClick={()=>setEvolutionMode('year')}>Anos</button></div>}>
+    {evolutionPoints.length===0?<p className="hint">Os dados do período aparecerão aqui em formato gráfico.</p>:<div className="revenueEvolution">
+     <svg viewBox="0 0 1000 240" preserveAspectRatio="none" className="revenueLine" aria-hidden="true"><polyline points={evolutionPolyline}/>{evolutionPoints.map((p,i)=>{const x=evolutionPoints.length===1?500:40+(i*(920/(evolutionPoints.length-1)));const y=205-(p.value/evolutionMax)*150;return <circle key={p.key} cx={x} cy={y} r="7"/>;})}</svg>
+     <div className="evolutionColumns">{evolutionPoints.map((p,i)=>{const change=i?percentChange(p.value,evolutionPoints[i-1].value):null;return <div className="evolutionPoint" key={p.key}><strong>{money(p.value)}</strong><div className="evolutionBar"><span style={{height:`${Math.max(8,(p.value/evolutionMax)*100)}%`}}/></div><b>{p.label}</b><small className={change===null?'neutral':change>=0?'up':'down'}>{i===0?'Base':change===null?'Novo':`${change>=0?'↑':'↓'} ${Math.abs(change).toFixed(1)}%`}</small></div>;})}</div>
+    </div>}
+    <p className="hint evolutionHint">Dias = agrupa o intervalo por dia · Meses = agrupa o intervalo por mês · Anos = agrupa o intervalo por ano.</p>
+   </Panel>
+  </div>
 
-  <Panel
-   title="Fechamento de caixa"
-   action={
-    <div className="inline">
-
-     <input
-      className="dateInput"
-      type="date"
-      value={selectedDay}
-      onChange={e=>
-       setSelectedDay(e.target.value)
-      }
-     />
-
-     {canAdmin&&
-      <button
-       className="primary"
-       onClick={close}
-      >
-       <Wallet size={17}/>
-       Fechar caixa do dia
-      </button>
-     }
-
-    </div>
-   }
-  >
-
-   <p className="hint">
-    O fechamento manual continua disponível. O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.
-   </p>
-
+  <Panel title="Movimentações do período">
+   <div className="cashSummary compactSummary"><div><span>Total do período</span><strong>{money(selectedTotal)}</strong></div>{selectedByMethod.map(x=><div key={x.name}><span>{paymentSymbol(x.name)} {x.name}</span><strong>{money(x.total)}</strong></div>)}</div>
+   <Table headers={['Data','Total','Por forma de pagamento']}>{dailyBreakdown.map(row=><tr key={row.date}><td>{dateOnly(row.date)}</td><td><b>{money(row.total)}</b></td><td><div className="serviceTags">{Object.entries(row.byMethod).map(([name,value])=><span key={name}>{paymentSymbol(name)} {name}: {money(value)}</span>)}</div></td></tr>)}{dailyBreakdown.length===0&&<tr><td colSpan="3">Nenhum faturamento encontrado no período.</td></tr>}</Table>
   </Panel>
 
+  {canAdmin&&<Panel title="Formas de pagamento" action={<button className="primary" onClick={addMethod}><Plus size={17}/>Adicionar</button>}><div className="formGrid two"><input placeholder="💳 Ex.: PIX, Dinheiro, Cartão" value={methodName} onChange={e=>setMethodName(e.target.value)}/></div><div className="methodChips">{paymentMethods.map(m=><span key={m.id}><i>{paymentSymbol(m.name)}</i>{m.name}<button onClick={()=>remove('payment_methods',m.id,setPaymentMethods,'Excluiu forma de pagamento')}><X size={14}/></button></span>)}</div></Panel>}
 
-  <Panel title="Fechamentos anteriores">
+  <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.</p></Panel>
 
-   <Table
-    headers={[
-     'Data',
-     'Fechado em',
-     'Total',
-     'Ações'
-    ]}
-   >
-
-    {cashClosings.map(c=>
-     <tr key={c.id}>
-
-      <td>
-       {dateOnly(c.closing_date)}
-      </td>
-
-      <td>
-       {dt(c.closed_at)}
-      </td>
-
-      <td>
-       <b>
-        {money(c.total_amount)}
-       </b>
-      </td>
-
-      <td>
-       {canSuperAdmin
-        ?<button
-          className="danger"
-          type="button"
-          title="Excluir fechamento"
-          onClick={()=>
-           deleteClosing(c.id)
-          }
-         >
-          <Trash2 size={16}/>
-         </button>
-
-        :<span className="hint">
-          Somente administrador
-         </span>
-       }
-      </td>
-
-     </tr>
-    )}
-
-
-    {cashClosings.length===0&&
-     <tr>
-      <td colSpan="4">
-       Nenhum fechamento registrado.
-      </td>
-     </tr>
-    }
-
-   </Table>
-
-  </Panel>
+  <Panel title="Fechamentos anteriores"><Table headers={['Data','Fechado em','Total','Ações']}>{cashClosings.map(c=><tr key={c.id}><td>{dateOnly(c.closing_date)}</td><td>{dt(c.closed_at)}</td><td><b>{money(c.total_amount)}</b></td><td>{canSuperAdmin?<button className="danger" type="button" title="Excluir fechamento" onClick={()=>deleteClosing(c.id)}><Trash2 size={16}/></button>:<span className="hint">Somente administrador</span>}</td></tr>)}{cashClosings.length===0&&<tr><td colSpan="4">Nenhum fechamento registrado.</td></tr>}</Table></Panel>
 
  </section>;
 }
@@ -7557,6 +7559,8 @@ function Reports({
 
  const [from,setFrom]=useState('');
  const [to,setTo]=useState('');
+ const [fromText,setFromText]=useState('');
+ const [toText,setToText]=useState('');
 
 
  const filtered=
@@ -7641,110 +7645,32 @@ function Reports({
 
 
  function pdf(){
-
-  const doc=
-   new jsPDF({
-    orientation:'landscape'
-   });
-
-
-  doc.setFontSize(18);
-
-  doc.text(
-   'Relatório de Serviços - Garagem GRAU CAR 096',
-   14,
-   16
-  );
-
-
-  doc.setFontSize(10);
-
-  doc.text(
-   `Período: ${from||'início'} a ${to||'hoje'} | Total: ${money(rows.reduce((s,r)=>s+r.Valor,0))}`,
-   14,
-   23
-  );
-
-
-  autoTable(doc,{
-   startY:28,
-
-   head:[[
-    'Data',
-    'Cliente',
-    'Placa',
-    'Veículo',
-    'Serviço',
-    'Funcionário',
-    'Valor',
-    'Status'
-   ]],
-
-   body:
-    rows.map(r=>[
-     r.Data,
-     r.Cliente,
-     r.Placa,
-     r.Veiculo,
-     r.Servico,
-     r.Funcionario,
-     money(r.Valor),
-     r.Status
-    ])
-  });
-
-
-  doc.save(
-   'relatorio-servicos.pdf'
-  );
-
+  const total=rows.reduce((sum,r)=>sum+r.Valor,0);
+  const doc=new jsPDF({orientation:'landscape'});
+  drawPdfHeader(doc,'Relatório Gerencial de Serviços',`Período: ${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}  •  Emitido em ${new Date().toLocaleString('pt-BR')}`);
+  const uniqueClients=new Set(rows.map(r=>r.Cliente).filter(Boolean)).size;
+  const avg=rows.length?total/rows.length:0;
+  drawPdfMetric(doc,14,45,55,'Serviços',rows.length);drawPdfMetric(doc,73,45,62,'Faturamento',money(total));drawPdfMetric(doc,139,45,55,'Clientes',uniqueClients);drawPdfMetric(doc,198,45,62,'Ticket médio',money(avg));
+  const byService=Object.values(rows.reduce((a,r)=>{a[r.Servico]=a[r.Servico]||{label:r.Servico||'Sem serviço',value:0};a[r.Servico].value+=r.Valor;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,7);
+  const byDay=Object.values(filtered.reduce((a,o)=>{const k=String(o.completed_at||o.created_at).slice(0,10);const serv=services.find(x=>x.id===o.service_id);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value+=Number(o.charged_amount||finalPrice(serv)||0);return a;},{})).slice(-7);
+  doc.setTextColor(40,40,46);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Faturamento por serviço',14,79);drawPdfBars(doc,byService,14,83,118,48);doc.text('Evolução recente',150,79);drawPdfBars(doc,byDay,150,83,118,48);
+  autoTable(doc,{startY:142,margin:{left:14,right:14},head:[['Data','Cliente','Placa','Veículo','Serviço','Funcionário','Valor','Status']],body:rows.map(r=>[r.Data,r.Cliente,r.Placa,r.Veiculo,r.Servico,r.Funcionario,money(r.Valor),String(r.Status||'').replaceAll('_',' ')]),theme:'grid',styles:{fontSize:7.7,cellPadding:2.8,lineColor:[226,226,230],lineWidth:.15,textColor:[45,45,50]},headStyles:{fillColor:[215,25,32],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[248,248,250]},didDrawPage:()=>{const page=doc.internal.getNumberOfPages(),height=doc.internal.pageSize.getHeight();doc.setFontSize(8);doc.setTextColor(120,120,128);doc.text(`Garagem Grau Car 096 • Relatório gerencial • Página ${page}`,14,height-8);}});
+  doc.save('relatorio-gerencial-grau-car.pdf');
  }
 
-
  function excel(){
-
-  const wb=
-   XLSX.utils.book_new();
-
-  const ws=
-   XLSX.utils.json_to_sheet(rows);
-
-  XLSX.utils.book_append_sheet(
-   wb,
-   ws,
-   'Serviços'
-  );
-
-
-  const payRows=
-   payments.map(p=>({
-
-    Data:
-     dt(p.paid_at),
-
-    Forma:
-     paymentMethods.find(
-      m=>m.id===p.payment_method_id
-     )?.name||'',
-
-    Valor:
-     Number(p.amount||0)
-
-   }));
-
-
-  XLSX.utils.book_append_sheet(
-   wb,
-   XLSX.utils.json_to_sheet(payRows),
-   'Pagamentos'
-  );
-
-
-  XLSX.writeFile(
-   wb,
-   'relatorio-estetica-veicular.xlsx'
-  );
-
+  const wb=XLSX.utils.book_new();
+  const total=rows.reduce((sum,r)=>sum+r.Valor,0);
+  const uniqueClients=new Set(rows.map(r=>r.Cliente).filter(Boolean)).size;
+  const avg=rows.length?total/rows.length:0;
+  const byService=Object.values(rows.reduce((a,r)=>{const k=r.Servico||'Sem serviço';a[k]=a[k]||{label:k,value:0};a[k].value+=r.Valor;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,10);
+  const byEmployee=Object.values(rows.reduce((a,r)=>{const k=r.Funcionario||'Não informado';a[k]=a[k]||{label:k,value:0};a[k].value+=r.Valor;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,10);
+  const period=`${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}`;
+  XLSX.utils.book_append_sheet(wb,makeExcelDashboard({title:'Dashboard Gerencial de Serviços',period,metrics:[{label:'Serviços',value:rows.length},{label:'Faturamento',value:money(total)},{label:'Clientes',value:uniqueClients},{label:'Ticket médio',value:money(avg)}],sections:[{title:'Faturamento por serviço',items:byService.map(x=>({...x,display:money(x.value)}))},{title:'Faturamento por integrante',items:byEmployee.map(x=>({...x,display:money(x.value)}))}]}),'Dashboard');
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(rows,[{width:20},{width:28},{width:12},{width:24},{width:28},{width:24},{width:16},{width:16}]),'Serviços');
+  const payRows=payments.filter(p=>{const d=String(p.paid_at||'').slice(0,10);return(!from||d>=from)&&(!to||d<=to)}).map(p=>({'Data/Hora':dt(p.paid_at),'Forma de pagamento':paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'Sem forma de pagamento','Valor':Number(p.amount||0)}));
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(payRows,[{width:22},{width:28},{width:18}]),'Pagamentos');
+  XLSX.writeFile(wb,'relatorio-gerencial-grau-car.xlsx');
  }
 
 
@@ -7778,25 +7704,15 @@ function Reports({
    <div className="formGrid two">
 
     <label>
-     De
-     <input
-      type="date"
-      value={from}
-      onChange={e=>
-       setFrom(e.target.value)
-      }
-     />
+     <CalendarDays size={17}/> De
+     <input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={fromText}
+      onChange={e=>{const v=maskDateBR(e.target.value);setFromText(v);setFrom(brDateToIso(v));}}/>
     </label>
 
     <label>
-     Até
-     <input
-      type="date"
-      value={to}
-      onChange={e=>
-       setTo(e.target.value)
-      }
-     />
+     <CalendarDays size={17}/> Até
+     <input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={toText}
+      onChange={e=>{const v=maskDateBR(e.target.value);setToText(v);setTo(brDateToIso(v));}}/>
     </label>
 
    </div>
@@ -7873,7 +7789,8 @@ function UsersPanel({
  profile,
  supabase,
  addLog,
- setProfiles
+ setProfiles,
+ setProfile
 }){
 
  const empty={
@@ -7888,6 +7805,8 @@ function UsersPanel({
 
  const [busy,setBusy]=
   useState(false);
+ const [photoFile,setPhotoFile]=useState(null);
+ const [editPhotoFile,setEditPhotoFile]=useState(null);
 
  const [editUser,setEditUser]=
   useState(null);
@@ -7897,7 +7816,8 @@ function UsersPanel({
    full_name:'',
    email:'',
    password:'',
-   role:'visualizador'
+   role:'visualizador',
+   photo_url:''
   });
 
 
@@ -7993,6 +7913,14 @@ function UsersPanel({
 
    if(data?.user){
 
+    let createdUser=data.user;
+    if(photoFile){
+     const photo_url=await uploadIdentityPhoto(photoFile,'profiles');
+     const {data:photoProfile,error:photoError}=await supabase.from('profiles').update({photo_url}).eq('id',data.user.id).select().single();
+     if(photoError)throw photoError;
+     createdUser={...data.user,...photoProfile,photo_url};
+    }
+
     setProfiles(x=>{
 
      if(
@@ -8003,14 +7931,14 @@ function UsersPanel({
       return x.map(
        p=>
         p.id===data.user.id
-         ?data.user
+         ?createdUser
          :p
       );
      }
 
      return [
       ...x,
-      data.user
+      createdUser
      ];
 
     });
@@ -8026,6 +7954,7 @@ function UsersPanel({
 
 
    setF(empty);
+   setPhotoFile(null);
 
    alert(
     'Usuário criado com sucesso.'
@@ -8059,8 +7988,10 @@ function UsersPanel({
    full_name:p.full_name||'',
    email:p.email||'',
    password:'',
-   role:p.role||'visualizador'
+   role:p.role||'visualizador',
+   photo_url:p.photo_url||''
   });
+  setEditPhotoFile(null);
 
  }
 
@@ -8073,8 +8004,10 @@ function UsersPanel({
    full_name:'',
    email:'',
    password:'',
-   role:'visualizador'
+   role:'visualizador',
+   photo_url:''
   });
+  setEditPhotoFile(null);
 
  }
 
@@ -8180,13 +8113,20 @@ function UsersPanel({
    }
 
 
-   const updated=
+   let updated=
     data?.user||{
      ...editUser,
      full_name:body.full_name,
      email:body.email,
      role:body.role
     };
+
+   if(editPhotoFile){
+    const photo_url=await uploadIdentityPhoto(editPhotoFile,'profiles');
+    const {data:photoProfile,error:photoError}=await supabase.from('profiles').update({photo_url}).eq('id',editUser.id).select().single();
+    if(photoError)throw photoError;
+    updated={...updated,...photoProfile,photo_url};
+   }
 
 
    setProfiles(current=>
@@ -8199,6 +8139,10 @@ function UsersPanel({
       :p
     )
    );
+
+   if(editUser.id===profile?.id){
+    setProfile?.(current=>({...current,...updated}));
+   }
 
 
    await addLog(
@@ -8254,7 +8198,7 @@ function UsersPanel({
    <div className="formGrid">
 
     <input
-     placeholder="Nome completo"
+     placeholder="👤 Nome completo"
      value={f.full_name}
      onChange={e=>
       setF({
@@ -8266,7 +8210,7 @@ function UsersPanel({
 
     <input
      type="email"
-     placeholder="E-mail"
+     placeholder="✉ E-mail"
      value={f.email}
      onChange={e=>
       setF({
@@ -8278,7 +8222,7 @@ function UsersPanel({
 
     <input
      type="password"
-     placeholder="Senha inicial"
+     placeholder="🔒 Senha inicial"
      value={f.password}
      onChange={e=>
       setF({
@@ -8311,6 +8255,7 @@ function UsersPanel({
 
    </div>
 
+   <PhotoPicker file={photoFile} currentUrl={f.photo_url} onChange={setPhotoFile} label="Foto de identificação do usuário"/>
 
    <Table
     headers={[
@@ -8324,9 +8269,7 @@ function UsersPanel({
     {profiles.map(p=>
      <tr key={p.id}>
 
-      <td>
-       {p.full_name||'-'}
-      </td>
+      <td><div className="personCell">{p.photo_url?<img src={p.photo_url} alt=""/>:<span className="avatarFallback"><User size={15}/></span>}<b>{p.full_name||'-'}</b></div></td>
 
       <td>
        {p.email||'-'}
@@ -8382,7 +8325,7 @@ function UsersPanel({
     <div>
      <b>Administrativo</b>
      <p>
-      Clientes, veículos, agendamentos, execução dos serviços e cadastro de novos usuários. Não visualiza faturamento no Dashboard e não edita usuários.
+      Clientes, veículos, agendamentos e execução dos serviços. Pode cadastrar clientes, mas não editar nem excluir clientes. Não visualiza faturamento no Dashboard.
      </p>
     </div>
 
@@ -8407,7 +8350,7 @@ function UsersPanel({
     <div className="formGrid">
 
      <input
-      placeholder="Nome completo"
+      placeholder="👤 Nome completo"
       value={editForm.full_name}
       onChange={e=>
        setEditForm({
@@ -8419,7 +8362,7 @@ function UsersPanel({
 
      <input
       type="email"
-      placeholder="E-mail"
+      placeholder="✉ E-mail"
       value={editForm.email}
       onChange={e=>
        setEditForm({
@@ -8474,6 +8417,7 @@ function UsersPanel({
 
     </div>
 
+    <PhotoPicker file={editPhotoFile} currentUrl={editForm.photo_url||editUser.photo_url} onChange={setEditPhotoFile} label="Alterar foto de identificação"/>
 
     {editUser.id===profile?.id&&
      <p className="hint">
@@ -8518,262 +8462,22 @@ function UsersPanel({
 ========================================================= */
 
 function Audit({logs}){
-
- const [from,setFrom]=useState('');
- const [to,setTo]=useState('');
- const [search,setSearch]=useState('');
-
-
- const filtered=
-  logs.filter(l=>{
-
-   const date=
-    String(l.created_at||'')
-     .slice(0,10);
-
-   const q=
-    search.trim().toLowerCase();
-
-
-   const text=
-    `${l.user_name||''} ${l.action||''} ${l.entity_type||''}`
-     .toLowerCase();
-
-
-   return (
-    !from||
-    date>=from
-   )&&(
-    !to||
-    date<=to
-   )&&(
-    !q||
-    text.includes(q)
-   );
-
-  });
-
-
- function auditPdf(){
-
-  const doc=
-   new jsPDF({
-    orientation:'landscape'
-   });
-
-
-  doc.setFontSize(18);
-
-  doc.text(
-   'Relatório de Auditoria - Garagem GRAU CAR 096',
-   14,
-   16
-  );
-
-
-  doc.setFontSize(10);
-
-  doc.text(
-   `Período: ${from||'início'} a ${to||'hoje'} | Registros: ${filtered.length}`,
-   14,
-   23
-  );
-
-
-  autoTable(doc,{
-   startY:28,
-
-   head:[[
-    'Data/Hora',
-    'Usuário',
-    'Ação',
-    'Tipo'
-   ]],
-
-   body:
-    filtered.map(l=>[
-     dt(l.created_at),
-     l.user_name||'-',
-     l.action||'-',
-     l.entity_type||'-'
-    ])
-  });
-
-
-  doc.save(
-   'relatorio-auditoria.pdf'
-  );
-
- }
-
-
+ const [from,setFrom]=useState('');const [to,setTo]=useState('');const [fromText,setFromText]=useState('');const [toText,setToText]=useState('');const [search,setSearch]=useState('');
+ const filtered=logs.filter(l=>{const date=String(l.created_at||'').slice(0,10),q=search.trim().toLowerCase(),txt=`${l.user_name||''} ${l.action||''} ${l.entity_type||''}`.toLowerCase();return(!from||date>=from)&&(!to||date<=to)&&(!q||txt.includes(q));});
+ const uniqueUsers=new Set(filtered.map(l=>l.user_name).filter(Boolean)).size;
+ const uniqueTypes=new Set(filtered.map(l=>l.entity_type).filter(Boolean)).size;
+ const byType=Object.values(filtered.reduce((a,l)=>{const k=l.entity_type||'Outros';a[k]=a[k]||{label:k,value:0};a[k].value++;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,7);
+ const byDay=Object.values(filtered.reduce((a,l)=>{const k=String(l.created_at||'').slice(0,10);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value++;return a;},{})).slice(-10);
+ function auditPdf(){const doc=new jsPDF({orientation:'landscape'});drawPdfHeader(doc,'Relatório Gerencial de Auditoria',`Período: ${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}  •  Emitido em ${new Date().toLocaleString('pt-BR')}`);drawPdfMetric(doc,14,45,55,'Registros',filtered.length);drawPdfMetric(doc,73,45,55,'Usuários',uniqueUsers);drawPdfMetric(doc,132,45,55,'Tipos',uniqueTypes);drawPdfMetric(doc,191,45,69,'Última atividade',filtered[0]?dt(filtered[0].created_at).slice(0,16):'-');doc.setTextColor(40,40,46);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Registros por tipo',14,79);drawPdfBars(doc,byType,14,83,118,48);doc.text('Atividade ao longo do período',150,79);drawPdfBars(doc,byDay,150,83,118,48);autoTable(doc,{startY:142,margin:{left:14,right:14},head:[['Data/Hora','Usuário','Ação','Tipo']],body:filtered.map(l=>[dt(l.created_at),l.user_name||'-',l.action||'-',l.entity_type||'-']),theme:'grid',styles:{fontSize:8,cellPadding:3,lineColor:[226,226,230],lineWidth:.15},headStyles:{fillColor:[215,25,32],textColor:[255,255,255]},alternateRowStyles:{fillColor:[248,248,250]}});doc.save('relatorio-auditoria-grau-car.pdf');}
  function auditExcel(){
-
-  const rows=
-   filtered.map(l=>({
-
-    'Data/Hora':
-     dt(l.created_at),
-
-    'Usuário':
-     l.user_name||'-',
-
-    'Ação':
-     l.action||'-',
-
-    'Tipo':
-     l.entity_type||'-'
-
-   }));
-
-
-  const wb=
-   XLSX.utils.book_new();
-
-  const ws=
-   XLSX.utils.json_to_sheet(rows);
-
-
-  XLSX.utils.book_append_sheet(
-   wb,
-   ws,
-   'Auditoria'
-  );
-
-
-  XLSX.writeFile(
-   wb,
-   'relatorio-auditoria.xlsx'
-  );
-
+  const wb=XLSX.utils.book_new();
+  const period=`${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}`;
+  XLSX.utils.book_append_sheet(wb,makeExcelDashboard({title:'Dashboard Gerencial de Auditoria',period,metrics:[{label:'Registros',value:filtered.length},{label:'Usuários envolvidos',value:uniqueUsers},{label:'Tipos de entidade',value:uniqueTypes},{label:'Última atividade',value:filtered[0]?dt(filtered[0].created_at).slice(0,16):'-'}],sections:[{title:'Registros por tipo',items:byType.map(x=>({...x,display:`${x.value} registros`}))},{title:'Atividade por dia',items:byDay.map(x=>({...x,display:`${x.value} ações`}))}]}),'Dashboard');
+  const rows=filtered.map(l=>({'Data/Hora':dt(l.created_at),'Usuário':l.user_name||'-','Ação':l.action||'-','Tipo':l.entity_type||'-'}));
+  XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(rows,[{width:22},{width:28},{width:56},{width:24}]),'Auditoria');
+  XLSX.writeFile(wb,'relatorio-auditoria-grau-car.xlsx');
  }
-
-
- return <section>
-
-  <Panel
-   title="Relatório da auditoria"
-   action={
-    <div className="reportBtns">
-
-     <button
-      className="secondary"
-      onClick={auditPdf}
-     >
-      <FileDown size={17}/>
-      PDF
-     </button>
-
-     <button
-      className="primary"
-      onClick={auditExcel}
-     >
-      <FileDown size={17}/>
-      Excel
-     </button>
-
-    </div>
-   }
-  >
-
-   <div className="formGrid">
-
-    <label>
-     De
-     <input
-      type="date"
-      value={from}
-      onChange={e=>
-       setFrom(e.target.value)
-      }
-     />
-    </label>
-
-    <label>
-     Até
-     <input
-      type="date"
-      value={to}
-      onChange={e=>
-       setTo(e.target.value)
-      }
-     />
-    </label>
-
-   </div>
-
-
-   <SearchBox
-    value={search}
-    onChange={setSearch}
-    placeholder="Pesquisar por usuário, ação ou tipo"
-   />
-
-
-   <div className="cashSummary">
-
-    <div>
-     <span>
-      Registros encontrados
-     </span>
-
-     <strong>
-      {filtered.length}
-     </strong>
-    </div>
-
-   </div>
-
-  </Panel>
-
-
-  <Panel title="Histórico de ações">
-
-   <Table
-    headers={[
-     'Data/Hora',
-     'Usuário',
-     'Ação',
-     'Tipo'
-    ]}
-   >
-
-    {filtered.map(l=>
-     <tr key={l.id}>
-
-      <td>
-       {dt(l.created_at)}
-      </td>
-
-      <td>
-       {l.user_name||'-'}
-      </td>
-
-      <td>
-       {l.action}
-      </td>
-
-      <td>
-       {l.entity_type||'-'}
-      </td>
-
-     </tr>
-    )}
-
-
-    {filtered.length===0&&
-     <tr>
-      <td colSpan="4">
-       Nenhum registro encontrado no período.
-      </td>
-     </tr>
-    }
-
-   </Table>
-
-  </Panel>
-
- </section>;
+ return <section><Panel title="Relatório da auditoria" action={<div className="reportBtns"><button className="secondary" onClick={auditPdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={auditExcel}><FileDown size={17}/>Excel</button></div>}><div className="formGrid"><label><CalendarDays size={17}/> De<input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={fromText} onChange={e=>{const v=maskDateBR(e.target.value);setFromText(v);setFrom(brDateToIso(v));}}/></label><label><CalendarDays size={17}/> Até<input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={toText} onChange={e=>{const v=maskDateBR(e.target.value);setToText(v);setTo(brDateToIso(v));}}/></label></div><SearchBox value={search} onChange={setSearch} placeholder="Pesquisar por usuário, ação ou tipo"/><div className="cashSummary"><div><span>Registros encontrados</span><strong>{filtered.length}</strong></div><div><span>Usuários envolvidos</span><strong>{uniqueUsers}</strong></div><div><span>Tipos de registro</span><strong>{uniqueTypes}</strong></div></div><div className="auditDashboard"><div><h4>Registros por tipo</h4>{byType.map(x=><div className="auditBar" key={x.label}><span>{x.label}</span><div><i style={{width:`${(x.value/Math.max(1,...byType.map(y=>y.value)))*100}%`}}/></div><b>{x.value}</b></div>)}</div><div><h4>Atividade recente</h4><div className="auditTimeline">{byDay.map(x=><div key={x.label}><b>{x.value}</b><span>{x.label}</span></div>)}</div></div></div></Panel><Panel title="Histórico de ações"><Table headers={['Data/Hora','Usuário','Ação','Tipo']}>{filtered.map(l=><tr key={l.id}><td>{dt(l.created_at)}</td><td>{l.user_name||'-'}</td><td>{l.action}</td><td>{l.entity_type||'-'}</td></tr>)}{filtered.length===0&&<tr><td colSpan="4">Nenhum registro encontrado no período.</td></tr>}</Table></Panel></section>;
 }
 
 
