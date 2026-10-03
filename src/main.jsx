@@ -22,6 +22,29 @@ const money=v=>Number(v||0).toLocaleString('pt-BR',{
  currency:'BRL'
 });
 
+// Compatibilidade: registros antigos possuem apenas employee_id.
+// Os novos registros podem possuir vários responsáveis em employee_ids.
+const responsibleEmployeeIds=record=>{
+ const ids=Array.isArray(record?.employee_ids)
+  ?record.employee_ids.filter(Boolean)
+  :[];
+ if(ids.length)return [...new Set(ids)];
+ return record?.employee_id?[record.employee_id]:[];
+};
+
+const responsibleEmployeeNames=(record,employees=[],fallback='')=>{
+ const names=responsibleEmployeeIds(record)
+  .map(id=>employees.find(e=>e.id===id)?.name)
+  .filter(Boolean);
+ return names.length?names.join(', '):(fallback||'-');
+};
+
+const employeeGeneratedShare=(record,employeeId)=>{
+ const ids=responsibleEmployeeIds(record);
+ if(!ids.includes(employeeId))return 0;
+ return Number(record?.charged_amount||0)/Math.max(1,ids.length);
+};
+
 const dt=v=>v?new Date(v).toLocaleString('pt-BR'):'-';
 
 const dateOnly=v=>v
@@ -2207,7 +2230,7 @@ function App(){
     <Reports {...common}/>
    }
 
-   {tab==='usuarios'&&canAdmin&&
+   {tab==='usuarios'&&
     <UsersPanel
      {...common}
      setProfiles={setProfiles}
@@ -2523,11 +2546,11 @@ function Sidebar({
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
   ['relatorios',FileDown,'Relatórios'],
-  ['usuarios',ShieldCheck,'Usuários'],
+  ['usuarios',ShieldCheck,['administrador','gerente'].includes(role)?'Usuários':'Meu perfil'],
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','relatorios','usuarios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
@@ -2864,8 +2887,18 @@ function Dashboard({
   em_atendimento:countAppointmentGroups('em_atendimento')
  };
 
+ const revenueNow=new Date();
+ const currentMonthCompletedOrders=
+  completedOrders.filter(o=>{
+   const d=new Date(o.completed_at||o.created_at);
+   return (
+    d.getFullYear()===revenueNow.getFullYear()&&
+    d.getMonth()===revenueNow.getMonth()
+   );
+  });
+
  const revenue=
-  completedOrders.reduce(
+  currentMonthCompletedOrders.reduce(
    (s,o)=>
     s+
     Number(
@@ -2951,7 +2984,7 @@ function Dashboard({
      t="Faturamento registrado"
      v={money(revenue)}
      I={Wallet}
-     hint="Serviços concluídos"
+     hint="Mês atual"
     />
    }
 
@@ -3457,10 +3490,8 @@ function Clients({
           x=>x.id===o.service_id
          );
 
-        const e=
-         employees.find(
-          x=>x.id===o.employee_id
-         );
+        const employeeNames=
+         responsibleEmployeeNames(o,employees,o.performed_by||'-');
 
         return <tr key={o.id}>
 
@@ -3480,7 +3511,7 @@ function Clients({
          </td>
 
          <td>
-          {e?.name||o.performed_by||'-'}
+          {employeeNames}
          </td>
 
          <td>
@@ -4748,12 +4779,7 @@ function History({
 
    const employeeNames=
     g.rows.map(
-     o=>
-      employees.find(
-       e=>e.id===o.employee_id
-      )?.name||
-      o.performed_by||
-      ''
+     o=>responsibleEmployeeNames(o,employees,o.performed_by||'')
     ).join(' ');
 
    const haystack=
@@ -4866,14 +4892,11 @@ function History({
 
        const employeeNames=[
         ...new Set(
-         g.rows.map(
-          o=>
-           employees.find(
-            e=>e.id===o.employee_id
-           )?.name||
-           o.performed_by||
-           '-'
-         )
+         g.rows.flatMap(o=>{
+          const ids=responsibleEmployeeIds(o);
+          if(!ids.length)return [o.performed_by||'-'];
+          return ids.map(id=>employees.find(e=>e.id===id)?.name).filter(Boolean);
+         })
         )
        ].join(', ');
 
@@ -4998,6 +5021,7 @@ function Appointments({
   scheduled_date:'',
   scheduled_time:'',
   employee_id:'',
+  employee_ids:[],
   notes:'',
   status:'agendado',
   discount_percent:'',
@@ -5380,7 +5404,8 @@ function Appointments({
       vehicle_id:f.vehicle_id,
       service_id:sv.id,
       atendimento_id:atendimentoId,
-      employee_id:f.employee_id,
+      employee_id:f.employee_ids[0]||null,
+      employee_ids:f.employee_ids,
       performed_by:profile?.full_name,
       status:'concluido',
       notes:f.notes,
@@ -5455,7 +5480,7 @@ function Appointments({
    !f.client_id||
    !f.vehicle_id||
    !f.service_ids.length||
-   !f.employee_id||
+   !f.employee_ids.length||
    !f.scheduled_date||
    !f.scheduled_time||
    f.charged_amount===''||
@@ -5463,7 +5488,7 @@ function Appointments({
   ){
 
    return alert(
-    'Preencha todos os campos obrigatórios: cliente, veículo, serviço, funcionário responsável, data, hora, valor cobrado e forma de pagamento.'
+    'Preencha todos os campos obrigatórios: cliente, veículo, serviço, pelo menos um funcionário responsável, data, hora, valor cobrado e forma de pagamento.'
    );
 
   }
@@ -5616,7 +5641,8 @@ function Appointments({
       client_id:f.client_id,
       vehicle_id:f.vehicle_id,
       service_id:sv.id,
-      employee_id:f.employee_id,
+      employee_id:f.employee_ids[0]||null,
+      employee_ids:f.employee_ids,
       scheduled_at:when,
       notes:f.notes,
       status:f.status,
@@ -5714,9 +5740,7 @@ function Appointments({
     ).join(' ');
 
    const employeeName=
-    employees.find(
-     e=>e.id===a.employee_id
-    )?.name||'';
+    responsibleEmployeeNames(a,employees,'');
 
    const filterIso=
     brDateToIso(filters.date);
@@ -5876,7 +5900,8 @@ function Appointments({
       hour12:false
      }
     ),
-   employee_id:a.employee_id||'',
+   employee_id:responsibleEmployeeIds(a)[0]||'',
+   employee_ids:responsibleEmployeeIds(a),
    notes:a.notes||'',
    status:a.status,
    discount_percent:
@@ -6058,33 +6083,41 @@ function Appointments({
    }
 
 
-   <select
-    value={f.employee_id}
-    onChange={e=>
-     setF({
-      ...f,
-      employee_id:e.target.value
-     })
-    }
-   >
-
-    <option value="">
-     👷 Funcionário responsável *
-    </option>
-
-    {employees
-     .filter(e=>e.active!==false)
-     .map(e=>
-      <option
-       key={e.id}
-       value={e.id}
-      >
-       {e.name}
-      </option>
-     )
-    }
-
-   </select>
+   <div className="multi-services">
+    <details className="services-dropdown">
+     <summary>
+      {f.employee_ids.length
+       ?`${f.employee_ids.length} funcionário(s) responsável(is) *`
+       :'👷 Funcionário(s) responsável(is) *'
+      }
+     </summary>
+     <div className="services-dropdown-list">
+      {employees
+       .filter(e=>e.active!==false)
+       .map(e=>{
+        const selected=f.employee_ids.includes(e.id);
+        return <label key={e.id} className="service-check">
+         <input
+          type="checkbox"
+          checked={selected}
+          onChange={event=>{
+           const ids=event.target.checked
+            ?[...f.employee_ids,e.id]
+            :f.employee_ids.filter(id=>id!==e.id);
+           setF({
+            ...f,
+            employee_ids:ids,
+            employee_id:ids[0]||''
+           });
+          }}
+         />
+         <span>{e.name}{e.position?` · ${e.position}`:''}</span>
+        </label>;
+       })
+      }
+     </div>
+    </details>
+   </div>
 
 
    <div className="appointment-datetime">
@@ -6488,10 +6521,8 @@ function Appointments({
        x=>x.id===a.vehicle_id
       );
 
-     const employee=
-      employees.find(
-       e=>e.id===a.employee_id
-      );
+     const employeeNames=
+      responsibleEmployeeNames(a,employees,'-');
 
      const total=
       a.ids.reduce(
@@ -6550,7 +6581,7 @@ function Appointments({
       </td>
 
       <td>
-       {employee?.name||'-'}
+       {employeeNames}
       </td>
 
       <td>
@@ -6710,7 +6741,7 @@ function Employees({
  const history=
   orders
    .filter(
-    o=>o.employee_id===detail
+    o=>responsibleEmployeeIds(o).includes(detail)
    )
    .sort(
     (a,b)=>
@@ -6720,14 +6751,14 @@ function Employees({
 
 
  const employeeCompletedHistory=history.filter(o=>o.status==='concluido');
- const employeeAllTimeTotal=employeeCompletedHistory.reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
+ const employeeAllTimeTotal=employeeCompletedHistory.reduce((sum,o)=>sum+employeeGeneratedShare(o,detail),0);
  const employeeNow=new Date();
  const employeeCurrentMonthTotal=employeeCompletedHistory
   .filter(o=>{
    const d=new Date(o.completed_at||o.created_at);
    return d.getFullYear()===employeeNow.getFullYear()&&d.getMonth()===employeeNow.getMonth();
   })
-  .reduce((sum,o)=>sum+Number(o.charged_amount||0),0);
+  .reduce((sum,o)=>sum+employeeGeneratedShare(o,detail),0);
 
  const employeeFields=
   <>
@@ -6827,14 +6858,13 @@ function Employees({
      const eo=
       orders.filter(
        o=>
-        o.employee_id===e.id&&
+        responsibleEmployeeIds(o).includes(e.id)&&
         o.status==='concluido'
       );
 
      const total=
       eo.reduce(
-       (s,o)=>
-        s+Number(o.charged_amount||0),
+       (s,o)=>s+employeeGeneratedShare(o,e.id),
        0
       );
 
@@ -6844,7 +6874,7 @@ function Employees({
        const d=new Date(o.completed_at||o.created_at);
        return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
       })
-      .reduce((s,o)=>s+Number(o.charged_amount||0),0);
+      .reduce((s,o)=>s+employeeGeneratedShare(o,e.id),0);
 
      return <tr key={e.id}>
 
@@ -7046,8 +7076,7 @@ function Employees({
 
          <td>
           {money(
-           o.charged_amount||
-           finalPrice(sv)
+           employeeGeneratedShare(o,employee.id)
           )}
          </td>
 
@@ -7722,10 +7751,8 @@ function Reports({
      s=>s.id===o.service_id
     );
 
-   const e=
-    employees.find(
-     e=>e.id===o.employee_id
-    );
+   const employeeNames=
+    responsibleEmployeeNames(o,employees,o.performed_by||'');
 
    return {
 
@@ -7748,9 +7775,7 @@ function Reports({
      s?.name||'',
 
     Funcionario:
-     e?.name||
-     o.performed_by||
-     '',
+     employeeNames,
 
     Valor:
      Number(
@@ -7975,6 +8000,29 @@ function UsersPanel({
 
  }
 
+ function canEditUserRecord(p){
+  if(!p)return false;
+  if(p.id===profile?.id)return true;
+  if(canSuperAdmin)return true;
+  if(
+   profile?.role==='gerente'&&
+   ['administrativo','visualizador'].includes(p.role)
+  )return true;
+  return false;
+ }
+
+ const visibleProfiles=
+  canAdmin
+   ?profiles
+   :profiles.filter(p=>p.id===profile?.id);
+
+ function editableRolesFor(p){
+  if(p?.id===profile?.id)return [p.role];
+  if(canSuperAdmin)return ['administrador','gerente','administrativo','visualizador'];
+  if(profile?.role==='gerente')return ['administrativo','visualizador'];
+  return [p?.role||'visualizador'];
+ }
+
 
  async function create(){
 
@@ -8038,9 +8086,22 @@ function UsersPanel({
     let createdUser=data.user;
     if(photoFile){
      const photo_url=await uploadIdentityPhoto(photoFile,'profiles');
-     const {data:photoProfile,error:photoError}=await supabase.from('profiles').update({photo_url}).eq('id',data.user.id).select().single();
+     const {data:photoData,error:photoError}=await supabase.functions.invoke(
+      'create-user',
+      {
+       body:{
+        action:'update',
+        id:data.user.id,
+        full_name:data.user.full_name||f.full_name.trim(),
+        email:data.user.email||f.email.trim().toLowerCase(),
+        role:data.user.role||f.role,
+        photo_url
+       }
+      }
+     );
      if(photoError)throw photoError;
-     createdUser={...data.user,...photoProfile,photo_url};
+     if(photoData?.error)throw new Error(photoData.error);
+     createdUser=photoData?.user||{...data.user,photo_url};
     }
 
     setProfiles(x=>{
@@ -8100,7 +8161,7 @@ function UsersPanel({
 
  function openEdit(p){
 
-  if(!canSuperAdmin)return;
+  if(!canEditUserRecord(p))return;
 
 
   setEditUser(p);
@@ -8137,8 +8198,8 @@ function UsersPanel({
  async function saveEdit(){
 
   if(
-   !canSuperAdmin||
-   !editUser
+   !editUser||
+   !canEditUserRecord(editUser)
   )return;
 
 
@@ -8193,11 +8254,29 @@ function UsersPanel({
 
   }
 
+  if(
+   profile?.role==='gerente'&&
+   editUser.id!==profile?.id&&
+   (
+    !['administrativo','visualizador'].includes(editUser.role)||
+    !['administrativo','visualizador'].includes(editForm.role)
+   )
+  ){
+   return alert(
+    'Gerentes só podem editar usuários Administrativo ou Visualizador.'
+   );
+  }
+
 
   setBusy(true);
 
 
   try{
+
+   let uploadedPhotoUrl='';
+   if(editPhotoFile){
+    uploadedPhotoUrl=await uploadIdentityPhoto(editPhotoFile,'profiles');
+   }
 
    const body={
     action:'update',
@@ -8218,6 +8297,10 @@ function UsersPanel({
    if(editForm.password){
     body.password=
      editForm.password;
+   }
+
+   if(uploadedPhotoUrl){
+    body.photo_url=uploadedPhotoUrl;
    }
 
 
@@ -8242,14 +8325,6 @@ function UsersPanel({
      email:body.email,
      role:body.role
     };
-
-   if(editPhotoFile){
-    const photo_url=await uploadIdentityPhoto(editPhotoFile,'profiles');
-    const {data:photoProfile,error:photoError}=await supabase.from('profiles').update({photo_url}).eq('id',editUser.id).select().single();
-    if(photoError)throw photoError;
-    updated={...updated,...photoProfile,photo_url};
-   }
-
 
    setProfiles(current=>
     current.map(p=>
@@ -8300,7 +8375,7 @@ function UsersPanel({
  return <section>
 
   <Panel
-   title="Usuários do sistema"
+   title={canAdmin?"Usuários do sistema":"Meu perfil"}
    action={
     canAdmin&&
     <button
@@ -8317,6 +8392,7 @@ function UsersPanel({
    }
   >
 
+   {canAdmin&&<>
    <div className="formGrid">
 
     <input
@@ -8378,6 +8454,7 @@ function UsersPanel({
    </div>
 
    <PhotoPicker file={photoFile} currentUrl={f.photo_url} onChange={setPhotoFile} label="Foto de identificação do usuário"/>
+   </>}
 
    <Table
     headers={[
@@ -8388,7 +8465,7 @@ function UsersPanel({
     ]}
    >
 
-    {profiles.map(p=>
+    {visibleProfiles.map(p=>
      <tr key={p.id}>
 
       <td><div className="personCell">{p.photo_url?<img src={p.photo_url} alt=""/>:<span className="avatarFallback"><User size={15}/></span>}<b>{p.full_name||'-'}</b></div></td>
@@ -8403,7 +8480,7 @@ function UsersPanel({
 
       <td>
 
-       {canSuperAdmin
+       {canEditUserRecord(p)
         ?<button
           type="button"
           className="secondary"
@@ -8428,7 +8505,7 @@ function UsersPanel({
    </Table>
 
 
-   <div className="roleGrid">
+   {canAdmin&&<div className="roleGrid">
 
     <div>
      <b>Administrador</b>
@@ -8458,7 +8535,7 @@ function UsersPanel({
      </p>
     </div>
 
-   </div>
+   </div>}
 
   </Panel>
 
@@ -8519,21 +8596,11 @@ function UsersPanel({
       }
      >
 
-      <option value="administrador">
-       Administrador
-      </option>
-
-      <option value="gerente">
-       Gerente
-      </option>
-
-      <option value="administrativo">
-       Administrativo
-      </option>
-
-      <option value="visualizador">
-       Visualizador
-      </option>
+      {editableRolesFor(editUser).map(r=>
+       <option key={r} value={r}>
+        {roleLabel(r)}
+       </option>
+      )}
 
      </select>
 
