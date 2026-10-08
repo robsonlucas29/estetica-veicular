@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {createPortal} from 'react-dom';
 import {createClient} from '@supabase/supabase-js';
 import {
  Car,Users,Wrench,ClipboardList,ShieldCheck,LogOut,Plus,Camera,Trash2,Edit3,
@@ -45,6 +46,14 @@ const employeeGeneratedShare=(record,employeeId)=>{
  return Number(record?.charged_amount||0)/Math.max(1,ids.length);
 };
 
+// Usa a data local do atendimento, evitando deslocamentos causados por UTC.
+const localDateKey=value=>{
+ if(!value)return '';
+ if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
+ const date=value instanceof Date?value:new Date(value);
+ if(Number.isNaN(date.getTime()))return '';
+ return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+};
 const dt=v=>v?new Date(v).toLocaleString('pt-BR'):'-';
 
 const dateOnly=v=>v
@@ -2850,7 +2859,7 @@ function Dashboard({
 }){
 
  const today=
-  new Date().toISOString().slice(0,10);
+  localDateKey(new Date());
 
  const completedOrders=
   orders.filter(o=>o.status==='concluido');
@@ -2858,9 +2867,7 @@ function Dashboard({
  const todayOrders=
   completedOrders.filter(
    o=>
-    String(
-     o.completed_at||o.created_at
-    ).slice(0,10)===today
+    localDateKey(o.completed_at||o.created_at)===today
   );
 
  const openAppointments=
@@ -2868,7 +2875,7 @@ function Dashboard({
 
  const todayAppointments=
   openAppointments.filter(a=>
-   String(a.scheduled_at||'').slice(0,10)===today
+   localDateKey(a.scheduled_at)===today
   );
 
  const openAppointmentCount=new Set(openAppointments.map(a=>a.appointment_group_id||a.id)).size;
@@ -4795,8 +4802,7 @@ function History({
    )&&(
     !dateFilter||
     !filterIso||
-    String(g.created_at)
-     .slice(0,10)===filterIso
+    localDateKey(g.created_at)===filterIso
    );
 
   });
@@ -4988,6 +4994,67 @@ function History({
 }
 
 
+/* Lista de múltipla seleção renderizada fora dos painéis com overflow.
+   Reposiciona automaticamente acima/abaixo e permite rolar até o fim. */
+function AppointmentMultiPicker({label,count,open,onToggle,children}){
+ const anchor=React.useRef(null);
+ const popup=React.useRef(null);
+ const onToggleRef=React.useRef(onToggle);
+ onToggleRef.current=onToggle;
+ const [pos,setPos]=useState({top:0,left:0,width:280,maxHeight:240});
+
+ useEffect(()=>{
+  if(!open)return;
+  const reposition=()=>{
+   const rect=anchor.current?.getBoundingClientRect();
+   if(!rect)return;
+   const margin=12,gap=6;
+   const below=window.innerHeight-rect.bottom-margin-gap;
+   const above=rect.top-margin-gap;
+   const up=below<230&&above>below;
+   const room=Math.max(110,up?above:below);
+   const maxHeight=Math.min(320,room);
+   const width=Math.min(rect.width,window.innerWidth-2*margin);
+   const left=Math.max(margin,Math.min(rect.left,window.innerWidth-margin-width));
+   setPos({top:up?Math.max(margin,rect.top-gap-maxHeight):rect.bottom+gap,left,width,maxHeight});
+  };
+  const outside=e=>{
+   if(!anchor.current?.contains(e.target)&&!popup.current?.contains(e.target))onToggleRef.current(false);
+  };
+  const escape=e=>{if(e.key==='Escape')onToggleRef.current(false)};
+  reposition();
+  document.addEventListener('pointerdown',outside);
+  document.addEventListener('keydown',escape);
+  window.addEventListener('resize',reposition);
+  window.addEventListener('scroll',reposition,true);
+  return ()=>{
+   document.removeEventListener('pointerdown',outside);
+   document.removeEventListener('keydown',escape);
+   window.removeEventListener('resize',reposition);
+   window.removeEventListener('scroll',reposition,true);
+  };
+ },[open]);
+
+ return <div ref={anchor} className="multi-services" style={{minWidth:0}}>
+  <button type="button" aria-expanded={open} aria-haspopup="true" onClick={()=>onToggle(!open)}
+   style={{width:'100%',minHeight:48,padding:'10px 13px',borderRadius:12,
+    border:`1px solid ${open?'#ef233c':'rgba(255,255,255,.22)'}`,
+    background:'#0d0d12',color:'#fff',font:'inherit',fontSize:14,fontWeight:600,
+    display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,textAlign:'left',cursor:'pointer'}}>
+   <span style={{minWidth:0,overflowWrap:'anywhere'}}>{count?`${count} ${label.selected}`:label.empty}</span>
+   <span aria-hidden="true" style={{flexShrink:0}}>{open?'⌃':'⌄'}</span>
+  </button>
+  {open&&createPortal(<div ref={popup} role="group" aria-label={label.title}
+   className="services-dropdown-list"
+   style={{position:'fixed',top:pos.top,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,
+    boxSizing:'border-box',overflowY:'auto',overscrollBehavior:'contain',
+    background:'#101016',color:'#fff',border:'1px solid #ef233c',borderRadius:12,
+    boxShadow:'0 14px 36px rgba(0,0,0,.7)',padding:8,zIndex:100000}}>
+   {children}
+  </div>,document.body)}
+ </div>;
+}
+
 /* =========================================================
    AGENDAMENTOS
 ========================================================= */
@@ -5001,6 +5068,7 @@ function Appointments({
  vehicleCategories,
  employees,
  paymentMethods,
+ cashClosings,
  canWrite,
  profile,
  insert,
@@ -5045,6 +5113,7 @@ function Appointments({
  });
 
  const [formKey,setFormKey]=useState(0);
+ const [openPicker,setOpenPicker]=useState(null);
 
 
  const available=
@@ -5127,6 +5196,7 @@ function Appointments({
   setF({...empty});
   setEdit(null);
   setFormKey(k=>k+1);
+  setOpenPicker(null);
 
  }
 
@@ -5347,7 +5417,8 @@ function Appointments({
 
  async function completeAppointment(
   groupId,
-  oldIds=[]
+  oldIds=[],
+  performedAt
  ){
 
   const selectedServices=
@@ -5410,8 +5481,7 @@ function Appointments({
       status:'concluido',
       notes:f.notes,
       charged_amount:serviceAmount,
-      completed_at:
-       new Date().toISOString()
+      completed_at:performedAt
      },
      setOrders,
      'Concluiu agendamento e enviou ao histórico'
@@ -5429,19 +5499,31 @@ function Appointments({
   }
 
 
-  await insert(
+  const paymentRow=await insert(
    'payments',
    {
     service_order_id:rows[0].id,
     payment_method_id:
      f.payment_method_id,
     amount:total,
-    paid_at:
-     new Date().toISOString()
+    paid_at:performedAt
    },
    setPayments,
    'Registrou pagamento do agendamento'
   );
+
+  if(!paymentRow){
+   // Mantém o agendamento original quando o pagamento não puder ser salvo.
+   const ids=rows.map(r=>r.id);
+   const {error:rollbackError}=await supabase.from('service_orders').delete().in('id',ids);
+   if(!rollbackError){
+    const idSet=new Set(ids);
+    setOrders(current=>current.filter(r=>!idSet.has(r.id)));
+   }else{
+    alert('O pagamento falhou e não foi possível desfazer os serviços criados. Contate o administrador antes de tentar novamente: '+rollbackError.message);
+   }
+   return false;
+  }
 
 
   await moveStoredFilesToHistory(
@@ -5566,17 +5648,20 @@ function Appointments({
 
   if(f.status==='concluido'){
 
-   if(
-    !confirm(
-     'Confirmar este agendamento como Concluído? Ele sairá da agenda, será enviado ao Histórico, o pagamento será registrado e a notificação disponível será disparada ao cliente.'
-    )
-   )return;
+   const alreadyClosed=cashClosings.some(c=>c.closing_date===localDateKey(when));
+   const closingNote=alreadyClosed
+    ?'\n\nATENÇÃO: o caixa desta data já foi fechado. O serviço entrará no dia correto, mas o fechamento anterior ficará com uma diferença de ajuste retroativo sinalizada no Caixa, sem alteração automática do valor fechado.'
+    :'';
+   if(!confirm(
+    `Confirmar a conclusão com data de realização ${f.scheduled_date} às ${f.scheduled_time}? O histórico e o pagamento serão lançados nessa data, e a notificação será enviada ao cliente.${closingNote}`
+   ))return;
 
 
    const ok=
     await completeAppointment(
      groupId,
-     oldIds
+     oldIds,
+     when
     );
 
 
@@ -5749,8 +5834,7 @@ function Appointments({
    return (
     !filters.date||
     !filterIso||
-    String(a.scheduled_at)
-     .slice(0,10)===filterIso
+    localDateKey(a.scheduled_at)===filterIso
    )&&(
     !filters.client||
     String(c?.name||'')
@@ -5993,71 +6077,25 @@ function Appointments({
    </select>
 
 
-   <div
-    className="multi-services"
-    key={formKey}
+   <AppointmentMultiPicker
+    key={`services-${formKey}`}
+    label={{title:'Serviços',empty:'🔧 Serviços *',selected:'serviço(s) selecionado(s) *'}}
+    count={f.service_ids.length}
+    open={openPicker==='services'}
+    onToggle={v=>setOpenPicker(v?'services':null)}
    >
-
-    <details className="services-dropdown">
-
-     <summary>
-      {f.service_ids.length
-       ?`${f.service_ids.length} serviço(s) selecionado(s) *`
-       :'🔧 Serviços *'
-      }
-     </summary>
-
-     <div className="services-dropdown-list">
-
-      {availableServices.map(s=>{
-
-       const selected=
-        f.service_ids.includes(s.id);
-
-       return <label
-        key={s.id}
-        className="service-check"
-       >
-
-        <input
-         type="checkbox"
-         checked={selected}
-         onChange={e=>{
-
-          const ids=
-           e.target.checked
-            ?[...f.service_ids,s.id]
-            :f.service_ids.filter(
-              id=>id!==s.id
-             );
-
-          setF({
-           ...f,
-           service_ids:ids,
-           discount_percent:'',
-           charged_amount:
-            totalWithDiscount(
-             ids,
-             ''
-            )
-          });
-
-         }}
-        />
-
-        <span>
-         {s.name} - {money(finalPrice(s))}
-        </span>
-
-       </label>;
-      })}
-
-     </div>
-
-    </details>
-
-   </div>
-
+    {availableServices.map(s=>{
+     const selected=f.service_ids.includes(s.id);
+     return <label key={s.id} className="service-check" style={{display:'flex',alignItems:'center',gap:12,padding:'10px 8px',cursor:'pointer'}}>
+      <input type="checkbox" checked={selected} onChange={e=>{
+       const ids=e.target.checked?[...f.service_ids,s.id]:f.service_ids.filter(id=>id!==s.id);
+       setF({...f,service_ids:ids,discount_percent:'',charged_amount:totalWithDiscount(ids,'')});
+      }}/>
+      <span>{s.name} - {money(finalPrice(s))}</span>
+     </label>;
+    })}
+    {availableServices.length===0&&<span className="fieldHint">Nenhum serviço disponível para o veículo.</span>}
+   </AppointmentMultiPicker>
 
    {f.vehicle_id&&!selectedVehicle?.category_id&&
     <div className="fieldHint">
@@ -6083,42 +6121,24 @@ function Appointments({
    }
 
 
-   <div className="multi-services">
-    <details className="services-dropdown">
-     <summary>
-      {f.employee_ids.length
-       ?`${f.employee_ids.length} funcionário(s) responsável(is) *`
-       :'👷 Funcionário(s) responsável(is) *'
-      }
-     </summary>
-     <div className="services-dropdown-list">
-      {employees
-       .filter(e=>e.active!==false)
-       .map(e=>{
-        const selected=f.employee_ids.includes(e.id);
-        return <label key={e.id} className="service-check">
-         <input
-          type="checkbox"
-          checked={selected}
-          onChange={event=>{
-           const ids=event.target.checked
-            ?[...f.employee_ids,e.id]
-            :f.employee_ids.filter(id=>id!==e.id);
-           setF({
-            ...f,
-            employee_ids:ids,
-            employee_id:ids[0]||''
-           });
-          }}
-         />
-         <span>{e.name}{e.position?` · ${e.position}`:''}</span>
-        </label>;
-       })
-      }
-     </div>
-    </details>
-   </div>
-
+   <AppointmentMultiPicker
+    key={`employees-${formKey}`}
+    label={{title:'Funcionários responsáveis',empty:'👷 Funcionário(s) responsável(is) *',selected:'funcionário(s) responsável(is) *'}}
+    count={f.employee_ids.length}
+    open={openPicker==='employees'}
+    onToggle={v=>setOpenPicker(v?'employees':null)}
+   >
+    {employees.filter(e=>e.active!==false).map(e=>{
+     const selected=f.employee_ids.includes(e.id);
+     return <label key={e.id} className="service-check" style={{display:'flex',alignItems:'center',gap:12,padding:'10px 8px',cursor:'pointer'}}>
+      <input type="checkbox" checked={selected} onChange={event=>{
+       const ids=event.target.checked?[...f.employee_ids,e.id]:f.employee_ids.filter(id=>id!==e.id);
+       setF({...f,employee_ids:ids,employee_id:ids[0]||''});
+      }}/>
+      <span>{e.name}{e.position?` · ${e.position}`:''}</span>
+     </label>;
+    })}
+   </AppointmentMultiPicker>
 
    <div className="appointment-datetime">
 
@@ -7115,7 +7135,7 @@ function Cash({
 }){
 
  const today=
-  new Date().toISOString().slice(0,10);
+  localDateKey(new Date());
 
  const [selectedDay,setSelectedDay]=
   useState(today);
@@ -7210,16 +7230,14 @@ useState(today.split('-').reverse().join('/'));
  const todayEntries=
   allEntries.filter(
    e=>
-    String(e.paid_at)
-     .slice(0,10)===today
+    localDateKey(e.paid_at)===today
   );
 
 
  const monthEntries=
   allEntries.filter(
    e=>
-    String(e.paid_at)
-     .slice(0,7)===
+    localDateKey(e.paid_at).slice(0,7)===
     today.slice(0,7)
   );
 
@@ -7242,7 +7260,7 @@ useState(today.split('-').reverse().join('/'));
 
  const selectedEntries=
   allEntries.filter(e=>{
-   const d=String(e.paid_at).slice(0,10);
+   const d=localDateKey(e.paid_at);
    return (!rangeFrom||d>=rangeFrom)&&(!rangeTo||d<=rangeTo);
   });
 
@@ -7302,7 +7320,7 @@ useState(today.split('-').reverse().join('/'));
    selectedEntries.reduce((acc,e)=>{
 
     const date=
-     String(e.paid_at).slice(0,10);
+     localDateKey(e.paid_at);
 
     if(!acc[date]){
 
@@ -7382,7 +7400,7 @@ useState(today.split('-').reverse().join('/'));
  const evolutionPoints=useMemo(()=>{
   const map={};
   selectedEntries.forEach(e=>{
-   const date=String(e.paid_at).slice(0,10);
+   const date=localDateKey(e.paid_at);
    const key=evolutionMode==='day'?date:evolutionMode==='month'?date.slice(0,7):date.slice(0,4);
    map[key]=(map[key]||0)+Number(e.amount||0);
   });
@@ -7428,8 +7446,7 @@ useState(today.split('-').reverse().join('/'));
   const dayEntries=
    allEntries.filter(
     e=>
-     String(e.paid_at)
-      .slice(0,10)===day
+     localDateKey(e.paid_at)===day
    );
 
 
@@ -7688,7 +7705,25 @@ useState(today.split('-').reverse().join('/'));
 
   <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.</p></Panel>
 
-  <Panel title="Fechamentos anteriores"><Table headers={['Data','Fechado em','Total','Ações']}>{cashClosings.map(c=><tr key={c.id}><td>{dateOnly(c.closing_date)}</td><td>{dt(c.closed_at)}</td><td><b>{money(c.total_amount)}</b></td><td>{canSuperAdmin?<button className="danger" type="button" title="Excluir fechamento" onClick={()=>deleteClosing(c.id)}><Trash2 size={16}/></button>:<span className="hint">Somente administrador</span>}</td></tr>)}{cashClosings.length===0&&<tr><td colSpan="4">Nenhum fechamento registrado.</td></tr>}</Table></Panel>
+  <Panel title="Fechamentos anteriores">
+   <p className="hint">Lançamentos retroativos entram na data do serviço. Se o caixa já estava fechado, a diferença aparece abaixo e o fechamento original permanece preservado para conferência.</p>
+   <Table headers={['Data','Fechado em','Total fechado','Conferência','Ações']}>
+    {cashClosings.map(c=>{
+     const actual=allEntries.filter(e=>localDateKey(e.paid_at)===c.closing_date).reduce((sum,e)=>sum+Number(e.amount||0),0);
+     const difference=Math.round((actual-Number(c.total_amount||0))*100)/100;
+     return <tr key={c.id}>
+      <td>{dateOnly(c.closing_date)}</td>
+      <td>{dt(c.closed_at)}</td>
+      <td><b>{money(c.total_amount)}</b></td>
+      <td>{Math.abs(difference)>=0.01
+       ?<span style={{color:'#ffb86b',fontWeight:700}}>Ajuste retroativo pendente: {money(difference)}<small style={{display:'block'}}>Total atualizado: {money(actual)}</small></span>
+       :<span>Conferido</span>}</td>
+      <td>{canSuperAdmin?<button className="danger" type="button" title="Excluir fechamento" onClick={()=>deleteClosing(c.id)}><Trash2 size={16}/></button>:<span className="hint">Somente administrador</span>}</td>
+     </tr>;
+    })}
+    {cashClosings.length===0&&<tr><td colSpan="5">Nenhum fechamento registrado.</td></tr>}
+   </Table>
+  </Panel>
 
  </section>;
 }
@@ -7718,17 +7753,11 @@ function Reports({
   orders.filter(o=>
    (
     !from||
-    String(
-     o.completed_at||
-     o.created_at
-    ).slice(0,10)>=from
+    localDateKey(o.completed_at||o.created_at)>=from
    )&&
    (
     !to||
-    String(
-     o.completed_at||
-     o.created_at
-    ).slice(0,10)<=to
+    localDateKey(o.completed_at||o.created_at)<=to
    )
   );
 
@@ -7799,7 +7828,7 @@ function Reports({
   const avg=rows.length?total/rows.length:0;
   drawPdfMetric(doc,14,45,55,'Serviços',rows.length);drawPdfMetric(doc,73,45,62,'Faturamento',money(total));drawPdfMetric(doc,139,45,55,'Clientes',uniqueClients);drawPdfMetric(doc,198,45,62,'Ticket médio',money(avg));
   const byService=Object.values(rows.reduce((a,r)=>{a[r.Servico]=a[r.Servico]||{label:r.Servico||'Sem serviço',value:0};a[r.Servico].value+=r.Valor;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,7);
-  const byDay=Object.values(filtered.reduce((a,o)=>{const k=String(o.completed_at||o.created_at).slice(0,10);const serv=services.find(x=>x.id===o.service_id);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value+=Number(o.charged_amount||finalPrice(serv)||0);return a;},{})).slice(-7);
+  const byDay=Object.values(filtered.reduce((a,o)=>{const k=localDateKey(o.completed_at||o.created_at);const serv=services.find(x=>x.id===o.service_id);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value+=Number(o.charged_amount||finalPrice(serv)||0);return a;},{})).slice(-7);
   doc.setTextColor(40,40,46);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Faturamento por serviço',14,79);drawPdfBars(doc,byService,14,83,118,48);doc.text('Evolução recente',150,79);drawPdfBars(doc,byDay,150,83,118,48);
   autoTable(doc,{startY:142,margin:{left:14,right:14},head:[['Data','Cliente','Placa','Veículo','Serviço','Funcionário','Valor','Status']],body:rows.map(r=>[r.Data,r.Cliente,r.Placa,r.Veiculo,r.Servico,r.Funcionario,money(r.Valor),String(r.Status||'').replaceAll('_',' ')]),theme:'grid',styles:{fontSize:7.7,cellPadding:2.8,lineColor:[226,226,230],lineWidth:.15,textColor:[45,45,50]},headStyles:{fillColor:[215,25,32],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[248,248,250]},didDrawPage:()=>{const page=doc.internal.getNumberOfPages(),height=doc.internal.pageSize.getHeight();doc.setFontSize(8);doc.setTextColor(120,120,128);doc.text(`Garagem Grau Car 096 • Relatório gerencial • Página ${page}`,14,height-8);}});
   doc.save('relatorio-gerencial-grau-car.pdf');
@@ -7815,7 +7844,7 @@ function Reports({
   const period=`${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}`;
   XLSX.utils.book_append_sheet(wb,makeExcelDashboard({title:'Dashboard Gerencial de Serviços',period,metrics:[{label:'Serviços',value:rows.length},{label:'Faturamento',value:money(total)},{label:'Clientes',value:uniqueClients},{label:'Ticket médio',value:money(avg)}],sections:[{title:'Faturamento por serviço',items:byService.map(x=>({...x,display:money(x.value)}))},{title:'Faturamento por integrante',items:byEmployee.map(x=>({...x,display:money(x.value)}))}]}),'Dashboard');
   XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(rows,[{width:20},{width:28},{width:12},{width:24},{width:28},{width:24},{width:16},{width:16}]),'Serviços');
-  const payRows=payments.filter(p=>{const d=String(p.paid_at||'').slice(0,10);return(!from||d>=from)&&(!to||d<=to)}).map(p=>({'Data/Hora':dt(p.paid_at),'Forma de pagamento':paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'Sem forma de pagamento','Valor':Number(p.amount||0)}));
+  const payRows=payments.filter(p=>{const d=localDateKey(p.paid_at);return(!from||d>=from)&&(!to||d<=to)}).map(p=>({'Data/Hora':dt(p.paid_at),'Forma de pagamento':paymentMethods.find(m=>m.id===p.payment_method_id)?.name||'Sem forma de pagamento','Valor':Number(p.amount||0)}));
   XLSX.utils.book_append_sheet(wb,makeExcelDataSheet(payRows,[{width:22},{width:28},{width:18}]),'Pagamentos');
   XLSX.writeFile(wb,'relatorio-gerencial-grau-car.xlsx');
  }
@@ -8652,11 +8681,11 @@ function UsersPanel({
 
 function Audit({logs}){
  const [from,setFrom]=useState('');const [to,setTo]=useState('');const [fromText,setFromText]=useState('');const [toText,setToText]=useState('');const [search,setSearch]=useState('');
- const filtered=logs.filter(l=>{const date=String(l.created_at||'').slice(0,10),q=search.trim().toLowerCase(),txt=`${l.user_name||''} ${l.action||''} ${l.entity_type||''}`.toLowerCase();return(!from||date>=from)&&(!to||date<=to)&&(!q||txt.includes(q));});
+ const filtered=logs.filter(l=>{const date=localDateKey(l.created_at),q=search.trim().toLowerCase(),txt=`${l.user_name||''} ${l.action||''} ${l.entity_type||''}`.toLowerCase();return(!from||date>=from)&&(!to||date<=to)&&(!q||txt.includes(q));});
  const uniqueUsers=new Set(filtered.map(l=>l.user_name).filter(Boolean)).size;
  const uniqueTypes=new Set(filtered.map(l=>l.entity_type).filter(Boolean)).size;
  const byType=Object.values(filtered.reduce((a,l)=>{const k=l.entity_type||'Outros';a[k]=a[k]||{label:k,value:0};a[k].value++;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,7);
- const byDay=Object.values(filtered.reduce((a,l)=>{const k=String(l.created_at||'').slice(0,10);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value++;return a;},{})).slice(-10);
+ const byDay=Object.values(filtered.reduce((a,l)=>{const k=localDateKey(l.created_at);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value++;return a;},{})).slice(-10);
  function auditPdf(){const doc=new jsPDF({orientation:'landscape'});drawPdfHeader(doc,'Relatório Gerencial de Auditoria',`Período: ${from?isoDateToBR(from):'início'} a ${to?isoDateToBR(to):'hoje'}  •  Emitido em ${new Date().toLocaleString('pt-BR')}`);drawPdfMetric(doc,14,45,55,'Registros',filtered.length);drawPdfMetric(doc,73,45,55,'Usuários',uniqueUsers);drawPdfMetric(doc,132,45,55,'Tipos',uniqueTypes);drawPdfMetric(doc,191,45,69,'Última atividade',filtered[0]?dt(filtered[0].created_at).slice(0,16):'-');doc.setTextColor(40,40,46);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Registros por tipo',14,79);drawPdfBars(doc,byType,14,83,118,48);doc.text('Atividade ao longo do período',150,79);drawPdfBars(doc,byDay,150,83,118,48);autoTable(doc,{startY:142,margin:{left:14,right:14},head:[['Data/Hora','Usuário','Ação','Tipo']],body:filtered.map(l=>[dt(l.created_at),l.user_name||'-',l.action||'-',l.entity_type||'-']),theme:'grid',styles:{fontSize:8,cellPadding:3,lineColor:[226,226,230],lineWidth:.15},headStyles:{fillColor:[215,25,32],textColor:[255,255,255]},alternateRowStyles:{fillColor:[248,248,250]}});doc.save('relatorio-auditoria-grau-car.pdf');}
  function auditExcel(){
   const wb=XLSX.utils.book_new();
