@@ -1307,3 +1307,13 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 @media(max-width:860px){
   .app>aside .identitySlot{--identity-center-x:50%}
 }
+
+/* Pesquisa nas listas de agendamento */
+.appointmentPickerSearch{display:flex;align-items:center;gap:8px;position:sticky;top:-8px;z-index:2;background:#101016;border:1px solid #44444d;border-radius:9px;padding:8px 10px;margin-bottom:8px;color:#aaa}
+.appointmentPickerSearch:focus-within{border-color:#ef233c}
+.appointmentPickerSearch input{background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;color:#fff!important;width:100%;min-width:0;height:26px!important;min-height:26px!important;padding:0!important}
+.appointmentPickerOptions{overflow-y:auto;max-height:230px;overscroll-behavior:contain}
+.appointmentPickerOption{display:block;width:100%;text-align:left;padding:10px 9px;background:transparent;color:#f4f4f5;border:0;border-radius:7px;cursor:pointer;font:inherit;overflow-wrap:anywhere}
+.appointmentPickerOption:hover,.appointmentPickerOption.isSelected{background:#3b111b;color:#fff}
+.appointmentPickerCurrent{font-size:12px;color:#ffb3be;padding:7px 9px;border-bottom:1px solid #34343a;margin-bottom:5px}
+.appointmentPickerEmpty{padding:12px;color:#aaa;font-size:13px}

@@ -4996,7 +4996,7 @@ function History({
 
 /* Lista de múltipla seleção renderizada fora dos painéis com overflow.
    Reposiciona automaticamente acima/abaixo e permite rolar até o fim. */
-function AppointmentMultiPicker({label,count,open,onToggle,children}){
+function AppointmentMultiPicker({label,count,open,onToggle,children,search, onSearch, placeholder}){
  const anchor=React.useRef(null);
  const popup=React.useRef(null);
  const onToggleRef=React.useRef(onToggle);
@@ -5050,9 +5050,24 @@ function AppointmentMultiPicker({label,count,open,onToggle,children}){
     boxSizing:'border-box',overflowY:'auto',overscrollBehavior:'contain',
     background:'#101016',color:'#fff',border:'1px solid #ef233c',borderRadius:12,
     boxShadow:'0 14px 36px rgba(0,0,0,.7)',padding:8,zIndex:100000}}>
-   {children}
+   {onSearch&&<div className="appointmentPickerSearch"><Search size={17}/><input autoFocus type="search" value={search||''} onChange={e=>onSearch(e.target.value)} placeholder={placeholder||'Pesquisar...'} aria-label={placeholder||'Pesquisar'} /></div>}
+   <div className="appointmentPickerOptions">{children}</div>
   </div>,document.body)}
  </div>;
+}
+
+/* Campo de seleção única com busca, usando a mesma lista flutuante. */
+function AppointmentSearchSelect({title,placeholder,value,items,onChange,search,onSearch}){
+ const selected=items.find(item=>String(item.id)===String(value));
+ const normalized=String(search||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const matches=items.filter(item=>String(item.label).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(normalized));
+ const [open,setOpen]=useState(false);
+ return <AppointmentMultiPicker label={{title,empty:placeholder,selected:placeholder}} count={0} open={open}
+  onToggle={v=>{setOpen(v);if(!v)onSearch('')}} search={search} onSearch={onSearch} placeholder={`Pesquisar ${title.toLowerCase()}...`}>
+  {selected&&<div className="appointmentPickerCurrent">Selecionado: {selected.label}</div>}
+  {matches.map(item=><button className={`appointmentPickerOption${String(value)===String(item.id)?' isSelected':''}`} type="button" key={item.id} onClick={()=>{onChange(item.id);setOpen(false);onSearch('')}}>{item.label}</button>)}
+  {!matches.length&&<div className="appointmentPickerEmpty">Nenhum resultado encontrado.</div>}
+ </AppointmentMultiPicker>;
 }
 
 /* =========================================================
@@ -5062,6 +5077,7 @@ function AppointmentMultiPicker({label,count,open,onToggle,children}){
 function Appointments({
  appointments,
  appointmentFiles,
+ orders,
  clients,
  vehicles,
  services,
@@ -5114,6 +5130,29 @@ function Appointments({
 
  const [formKey,setFormKey]=useState(0);
  const [openPicker,setOpenPicker]=useState(null);
+ const [pickerSearch,setPickerSearch]=useState({client:'',vehicle:'',services:'',employees:''});
+ const changePickerSearch=(field,value)=>setPickerSearch(prev=>({...prev,[field]:value}));
+ const matchesPicker=(value,query)=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(String(query||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
+ // Cada agendamento conta uma vez, mesmo que tenha vários serviços.
+ // Serviços concluídos que migraram ao histórico não são contados duas vezes.
+ const frequentClients=useMemo(()=>{
+  const count=new Map();
+  const counted=new Set();
+  const vehicleClient=new Map(vehicles.map(v=>[v.id,v.client_id]));
+  for(const a of appointments){
+   const id=a.client_id||vehicleClient.get(a.vehicle_id);
+   const group=a.appointment_group_id||a.id;
+   if(!id||!group||counted.has(String(group)))continue;
+   counted.add(String(group));count.set(id,(count.get(id)||0)+1);
+  }
+  for(const o of orders||[]){
+   const id=o.client_id||vehicleClient.get(o.vehicle_id);
+   const group=o.appointment_group_id||o.id;
+   if(!id||!group||counted.has(String(group)))continue;
+   counted.add(String(group));count.set(id,(count.get(id)||0)+1);
+  }
+  return [...clients].sort((a,b)=>(count.get(b.id)||0)-(count.get(a.id)||0)||String(a.name).localeCompare(String(b.name),'pt-BR'));
+ },[clients,vehicles,appointments,orders]);
 
 
  const available=
@@ -5197,6 +5236,7 @@ function Appointments({
   setEdit(null);
   setFormKey(k=>k+1);
   setOpenPicker(null);
+  setPickerSearch({client:'',vehicle:'',services:'',employees:''});
 
  }
 
@@ -6008,83 +6048,25 @@ function Appointments({
 
   return <div className="formGrid">
 
-   <select
-    value={f.client_id}
-    onChange={e=>
-     setF({
-      ...f,
-      client_id:e.target.value,
-      vehicle_id:'',
-      service_ids:[],
-      discount_percent:'',
-      charged_amount:''
-     })
-    }
-   >
+   <AppointmentSearchSelect title="Clientes" placeholder="👤 Cliente *" value={f.client_id}
+    items={frequentClients.map(c=>({id:c.id,label:c.name}))}
+    search={pickerSearch.client} onSearch={v=>changePickerSearch('client',v)}
+    onChange={id=>setF({...f,client_id:id,vehicle_id:'',service_ids:[],discount_percent:'',charged_amount:''})}/>
 
-    <option value="">
-     👤 Cliente *
-    </option>
-
-    {clients.map(c=>
-     <option
-      key={c.id}
-      value={c.id}
-     >
-      {c.name}
-     </option>
-    )}
-
-   </select>
-
-
-   <select
-    value={f.vehicle_id}
-    onChange={e=>
-     setF({
-      ...f,
-      vehicle_id:e.target.value,
-      service_ids:[],
-      discount_percent:'',
-      charged_amount:''
-     })
-    }
-   >
-
-    <option value="">
-     🚗 Veículo *
-    </option>
-
-    {available.map(v=>{
-
-     const cat=
-      vehicleCategories.find(
-       c=>c.id===v.category_id
-      );
-
-     return <option
-      key={v.id}
-      value={v.id}
-     >
-      {v.plate} · {v.brand} {v.model}
-      {cat
-       ?` · ${cat.name}`
-       :' · SEM CATEGORIA'
-      }
-     </option>;
-    })}
-
-   </select>
-
+   <AppointmentSearchSelect title="Veículos" placeholder="🚗 Veículo *" value={f.vehicle_id}
+    items={available.map(v=>({id:v.id,label:`${v.plate} · ${v.brand} ${v.model} · ${vehicleCategories.find(c=>c.id===v.category_id)?.name||'SEM CATEGORIA'}`}))}
+    search={pickerSearch.vehicle} onSearch={v=>changePickerSearch('vehicle',v)}
+    onChange={id=>setF({...f,vehicle_id:id,service_ids:[],discount_percent:'',charged_amount:''})}/>
 
    <AppointmentMultiPicker
     key={`services-${formKey}`}
     label={{title:'Serviços',empty:'🔧 Serviços *',selected:'serviço(s) selecionado(s) *'}}
     count={f.service_ids.length}
     open={openPicker==='services'}
-    onToggle={v=>setOpenPicker(v?'services':null)}
+    onToggle={v=>{setOpenPicker(v?'services':null);changePickerSearch('services','')}}
+    search={pickerSearch.services} onSearch={v=>changePickerSearch('services',v)} placeholder="Pesquisar serviço..."
    >
-    {availableServices.map(s=>{
+    {availableServices.filter(s=>matchesPicker(s.name,pickerSearch.services)).map(s=>{
      const selected=f.service_ids.includes(s.id);
      return <label key={s.id} className="service-check" style={{display:'flex',alignItems:'center',gap:12,padding:'10px 8px',cursor:'pointer'}}>
       <input type="checkbox" checked={selected} onChange={e=>{
@@ -6126,9 +6108,10 @@ function Appointments({
     label={{title:'Funcionários responsáveis',empty:'👷 Funcionário(s) responsável(is) *',selected:'funcionário(s) responsável(is) *'}}
     count={f.employee_ids.length}
     open={openPicker==='employees'}
-    onToggle={v=>setOpenPicker(v?'employees':null)}
+    onToggle={v=>{setOpenPicker(v?'employees':null);changePickerSearch('employees','')}}
+    search={pickerSearch.employees} onSearch={v=>changePickerSearch('employees',v)} placeholder="Pesquisar funcionário..."
    >
-    {employees.filter(e=>e.active!==false).map(e=>{
+    {employees.filter(e=>e.active!==false&&matchesPicker(`${e.name} ${e.position||''}`,pickerSearch.employees)).map(e=>{
      const selected=f.employee_ids.includes(e.id);
      return <label key={e.id} className="service-check" style={{display:'flex',alignItems:'center',gap:12,padding:'10px 8px',cursor:'pointer'}}>
       <input type="checkbox" checked={selected} onChange={event=>{
