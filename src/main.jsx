@@ -13,10 +13,13 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
+import {checkSupabaseEnvironment} from './config/supabaseSafety.js';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase=(url&&key)?createClient(url,key):null;
+const supabaseSafety=checkSupabaseEnvironment(url,window.location.hostname);
+if(!supabaseSafety.allowed) console.error(supabaseSafety.reason);
+const supabase=(url&&key&&supabaseSafety.allowed)?createClient(url,key):null;
 
 const money=v=>Number(v||0).toLocaleString('pt-BR',{
  style:'currency',
