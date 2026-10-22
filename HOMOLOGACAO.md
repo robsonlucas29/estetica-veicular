@@ -29,7 +29,7 @@ Produção e domínio principal preservados. Envios reais desativados.
 
 ## Bloqueios reais para entrega definitiva
 
-1. Login da aplicação expirou por inatividade; a tentativa segura seguinte foi recusada com “E-mail ou senha inválidos”. Necessário o usuário entrar manualmente para concluir homologação visual de cadastros, anexos e relatórios, além de novos usuários.
+1. Acesso restabelecido. Homologação visual de cliente, categoria, veículo, serviço, equipe, agendamento, conclusão, caixa, estoque, despesas, pontos e upload de imagem executada com dados fictícios. PDF e Excel do caixa gerados e conteúdo conferido. Resta verificar criação de novos usuários (senha deve ser criada pelo usuário), transferência do anexo na conclusão e perfil de cada login.
 2. WhatsApp segue sem credenciais: login da Meta em ciclo. Não foi contornado nem ativado envio real.
 3. Backup: o painel confirmou plano Free sem backups. Nenhum backup externo foi configurado ou restauração completa foi alegada. Necessário destino externo/credenciais próprias para backup ou plano compatível; código no GitHub não é backup dos dados e anexos.
 4. Entrada em produção continua fora desta execução, respeitando a instrução original de não alterá-la.
@@ -38,3 +38,11 @@ Produção e domínio principal preservados. Envios reais desativados.
 
 `npm ci --ignore-scripts`, `npm run build:dev`, `node scripts/verify-development.mjs`.
 SQL de instalação e testes em `supabase/sql/`; executar exclusivamente no projeto de desenvolvimento. Testes SQL usam a conta de homologação existente apenas dentro de uma transação revertida. Não executar em produção.
+
+## Evidências da rodada pela interface
+
+- Atendimento concluído de R$ 100,00 no histórico e caixa; sem mensagem e fila vazia.
+- Estoque: +10 e -3 litros, saldo 7. Financeiro: receita R$ 100,00 e despesa paga R$ 25,00, saldo R$ 75,00. Fidelidade: +100 e -30 pontos, saldo 70.
+- Segundo atendimento sintético, com imagem anexada, reagendado de 10h para 11h do dia 23/10/2026, confirmado por consulta ao servidor.
+- Corrigida propagação dos agendamentos entre agenda visual e estado compartilhado das telas originais.
+- Dados sintéticos desta rodada permanecem identificados como HOMOLOGAÇÃO no desenvolvimento para conferência; não são dados reais da operação.
