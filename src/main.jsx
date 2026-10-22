@@ -15,6 +15,7 @@ import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
 import {checkSupabaseEnvironment} from './config/supabaseSafety.js';
 import {InventoryModule,FinanceModule} from './modernizacao/OperationsModules.jsx';
+import {SmartCalendar,ProductionBoard,LoyaltyModule} from './modernizacao/ExperienceModules.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2239,6 +2240,18 @@ function App(){
     />
    }
 
+   {tab==='agenda-visual'&&
+    <SmartCalendar appointments={appointments} clients={clients} vehicles={vehicles} services={services} employees={employees} onOpenScheduling={()=>setTab('agendamentos')}/>
+   }
+
+   {tab==='producao'&&
+    <ProductionBoard appointments={appointments} orders={orders} clients={clients} vehicles={vehicles} employees={employees}/>
+   }
+
+   {tab==='fidelidade'&&canAdmin&&
+    <LoyaltyModule supabase={supabase} clients={clients} canAdmin={canAdmin}/>
+   }
+
    {tab==='estoque'&&
     <InventoryModule supabase={supabase} canAdmin={canAdmin} profile={profile}/>
    }
@@ -2564,6 +2577,9 @@ function Sidebar({
   ['servicos',Wrench,'Serviços'],
   ['historico',ClipboardList,'Histórico'],
   ['agendamentos',CalendarDays,'Agendamentos'],
+  ['agenda-visual',CalendarDays,'Agenda visual'],
+  ['producao',ClipboardList,'Produção'],
+  ['fidelidade',Users,'Fidelidade'],
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
   ['estoque',ClipboardList,'Estoque'],
@@ -2573,7 +2589,7 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','financeiro','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
