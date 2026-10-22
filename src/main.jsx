@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
 import {checkSupabaseEnvironment} from './config/supabaseSafety.js';
+import {InventoryModule,FinanceModule} from './modernizacao/OperationsModules.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2238,6 +2239,14 @@ function App(){
     />
    }
 
+   {tab==='estoque'&&
+    <InventoryModule supabase={supabase} canAdmin={canAdmin} profile={profile}/>
+   }
+
+   {tab==='financeiro'&&canAdmin&&
+    <FinanceModule supabase={supabase}/>
+   }
+
    {tab==='relatorios'&&canAdmin&&
     <Reports {...common}/>
    }
@@ -2557,12 +2566,14 @@ function Sidebar({
   ['agendamentos',CalendarDays,'Agendamentos'],
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
+  ['estoque',ClipboardList,'Estoque'],
+  ['financeiro',Wallet,'Despesas'],
   ['relatorios',FileDown,'Relatórios'],
   ['usuarios',ShieldCheck,['administrador','gerente'].includes(role)?'Usuários':'Meu perfil'],
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','financeiro','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
