@@ -19,6 +19,7 @@ import {SmartCalendar,ProductionBoard,LoyaltyModule} from './modernizacao/Experi
 import {useLiveProduction} from './modernizacao/useLiveProduction.js';
 import {NotificationConsentModule} from './modernizacao/NotificationConsentModule.jsx';
 import {OperationalAlerts} from './modernizacao/OperationalAlerts.jsx';
+import {InstallAppButton} from './modernizacao/InstallAppButton.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2159,6 +2160,8 @@ function App(){
       flexWrap:'wrap'
      }}
     >
+
+     <InstallAppButton/>
 
      <button
       type="button"
