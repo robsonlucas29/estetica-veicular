@@ -2245,7 +2245,7 @@ function App(){
    }
 
    {tab==='agenda-visual'&&
-    <SmartCalendar appointments={liveProduction.appointments} clients={clients} vehicles={vehicles} services={services} employees={employees} onOpenScheduling={()=>setTab('agendamentos')}/>
+    <SmartCalendar appointments={liveProduction.appointments} clients={clients} vehicles={vehicles} services={services} employees={employees} supabase={supabase} canManage={canAdmin} onOpenScheduling={()=>setTab('agendamentos')}/>
    }
 
    {tab==='producao'&&
