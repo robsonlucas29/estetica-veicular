@@ -9,6 +9,8 @@ export function InventoryModule({supabase,canAdmin,profile}){
  const [moves,setMoves]=useState([]);
  const [name,setName]=useState('');
  const [sku,setSku]=useState('');
+ const [minQuantity,setMinQuantity]=useState('0');
+ const [unit,setUnit]=useState('unidade');
  const [selected,setSelected]=useState('');
  const [amount,setAmount]=useState('');
  const [reason,setReason]=useState('');
@@ -26,10 +28,10 @@ export function InventoryModule({supabase,canAdmin,profile}){
  useEffect(()=>{refresh();},[]);
  async function addItem(e){
   e.preventDefault();setBusy(true);setNotice('');
-  const {error}=await supabase.from('inventory_items').insert({name:name.trim(),sku:sku.trim()||null});
+  const {error}=await supabase.from('inventory_items').insert({name:name.trim(),sku:sku.trim()||null,min_quantity:Number(minQuantity)||0,unit});
   setBusy(false);
   if(error){setNotice(errText(error));return;}
-  setName('');setSku('');setNotice('Material cadastrado.');await refresh();
+  setName('');setSku('');setMinQuantity('0');setUnit('unidade');setNotice('Material cadastrado.');await refresh();
  }
  async function move(e){
   e.preventDefault();
@@ -53,6 +55,8 @@ export function InventoryModule({supabase,canAdmin,profile}){
    <form onSubmit={addItem} className="inline">
     <input aria-label="Nome do material" placeholder="Nome do material" required value={name} onChange={e=>setName(e.target.value)}/>
     <input aria-label="Código SKU" placeholder="Código SKU (opcional)" value={sku} onChange={e=>setSku(e.target.value)}/>
+    <input aria-label="Estoque mínimo" type="number" min="0" step="0.001" value={minQuantity} onChange={e=>setMinQuantity(e.target.value)}/>
+    <select aria-label="Unidade de medida" value={unit} onChange={e=>setUnit(e.target.value)}><option value="unidade">Unidade</option><option value="litro">Litro</option><option value="ml">Mililitro</option><option value="caixa">Caixa</option><option value="kg">Quilograma</option></select>
     <button className="primary" disabled={busy}>Cadastrar</button>
    </form>
   </div>}
@@ -71,9 +75,10 @@ export function InventoryModule({supabase,canAdmin,profile}){
     <button className="primary" disabled={busy}>Registrar</button>
    </form>
   </div>}
+  <p role="status"><strong>Materiais com saldo no mínimo ou abaixo: {items.filter(i=>Number(i.current_quantity)<=Number(i.min_quantity)).length}</strong></p>
   <h3>Materiais cadastrados</h3>
   <div className="tableWrap"><table><thead><tr><th>Material</th><th>SKU</th><th>Saldo</th><th>Mínimo</th></tr></thead><tbody>
-   {items.map(i=><tr key={i.id}><td>{i.name}</td><td>{i.sku||'—'}</td><td>{i.current_quantity} {i.unit}</td><td>{i.min_quantity}</td></tr>)}
+   {items.map(i=><tr key={i.id}><td>{i.name}</td><td>{i.sku||'—'}</td><td>{i.current_quantity} {i.unit}{Number(i.current_quantity)<=Number(i.min_quantity)?" ⚠️":""}</td><td>{i.min_quantity}</td></tr>)}
    {!items.length&&<tr><td colSpan="4">Nenhum material cadastrado.</td></tr>}
   </tbody></table></div>
   {canAdmin&&<><h3>Últimas movimentações</h3><div className="tableWrap"><table><thead><tr><th>Data</th><th>Material</th><th>Quantidade</th><th>Motivo</th></tr></thead><tbody>
@@ -106,6 +111,13 @@ export function FinanceModule({supabase}){
   if(error){setNotice(errText(error));return;}
   setDescription('');setAmount('');setNotice('Despesa registrada.');await refresh();
  }
+ async function markPaid(expense){
+  if(!window.confirm('Confirmar pagamento desta despesa?'))return;
+  setBusy(true);setNotice('');
+  const {error}=await supabase.from('finance_expenses').update({status:'pago',paid_on:new Date().toLocaleDateString('en-CA')}).eq('id',expense.id).eq('status','pendente');
+  setBusy(false);
+  if(error)setNotice(errText(error));else{setNotice('Pagamento registrado.');await refresh();}
+ }
  const total=expenses.filter(e=>e.status!=='cancelado').reduce((sum,e)=>sum+Number(e.amount||0),0);
  return <section className="panel">
   <h2>Gestão financeira — despesas</h2>
@@ -121,9 +133,9 @@ export function FinanceModule({supabase}){
    </form>
   </div>
   <p><strong>Total listado (exceto canceladas): {brl(total)}</strong></p>
-  <div className="tableWrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr></thead><tbody>
-   {expenses.map(e=><tr key={e.id}><td>{String(e.incurred_on||'').split('-').reverse().join('/')}</td><td>{e.description}</td><td>{brl(e.amount)}</td><td>{e.status}</td></tr>)}
-   {!expenses.length&&<tr><td colSpan="4">Nenhuma despesa registrada.</td></tr>}
+  <div className="tableWrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Situação</th><th>Ação</th></tr></thead><tbody>
+   {expenses.map(e=><tr key={e.id}><td>{String(e.incurred_on||'').split('-').reverse().join('/')}</td><td>{e.description}</td><td>{brl(e.amount)}</td><td>{e.status}</td><td>{e.status==='pendente'&&<button type="button" className="secondary" disabled={busy} onClick={()=>markPaid(e)}>Marcar paga</button>}</td></tr>)}
+   {!expenses.length&&<tr><td colSpan="5">Nenhuma despesa registrada.</td></tr>}
   </tbody></table></div>
  </section>;
 }
