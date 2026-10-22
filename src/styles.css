@@ -1317,3 +1317,15 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .appointmentPickerOption:hover,.appointmentPickerOption.isSelected{background:#3b111b;color:#fff}
 .appointmentPickerCurrent{font-size:12px;color:#ffb3be;padding:7px 9px;border-bottom:1px solid #34343a;margin-bottom:5px}
 .appointmentPickerEmpty{padding:12px;color:#aaa;font-size:13px}
+
+/* Modulos de modernizacao — somente branch de desenvolvimento */
+.smartCalendarGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:14px 0 22px}
+.smartCalendarWeekday{text-align:center;padding:9px 2px;font-size:.8rem;opacity:.75}
+.smartCalendarDay{display:flex;flex-direction:column;gap:7px;align-items:flex-start;min-height:76px;padding:10px;border:1px solid #45454b;border-radius:10px;background:transparent;color:inherit;cursor:pointer;min-width:0}
+.smartCalendarDay small{font-size:.7rem;color:#f0a4a8;overflow-wrap:anywhere;text-align:left}
+.smartCalendarSelected{border:2px solid #e52b3a;background:rgba(229,43,58,.12)}
+.smartCalendarAppointments{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.smartProductionGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.smartProductionTicket{padding:12px 0;border-top:1px solid #45454b}
+.smartProductionTicket p{margin:6px 0}
+@media(max-width:800px){.smartProductionGrid{grid-template-columns:1fr}.smartCalendarDay{min-height:60px;padding:5px}.smartCalendarDay small{font-size:.6rem}}
