@@ -20,6 +20,7 @@ import {useLiveProduction} from './modernizacao/useLiveProduction.js';
 import {NotificationConsentModule} from './modernizacao/NotificationConsentModule.jsx';
 import {OperationalAlerts} from './modernizacao/OperationalAlerts.jsx';
 import {InstallAppButton} from './modernizacao/InstallAppButton.jsx';
+import {IntegrationsCenter} from './modernizacao/IntegrationsCenter.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2255,6 +2256,10 @@ function App(){
     <ProductionBoard appointments={liveProduction.appointments} orders={liveProduction.orders} connectionStatus={liveProduction.status} clients={clients} vehicles={vehicles} employees={employees}/>
    }
 
+   {tab==='integracoes'&&canAdmin&&
+    <IntegrationsCenter supabase={supabase}/>
+   }
+
    {tab==='alertas'&&canAdmin&&
     <OperationalAlerts supabase={supabase} appointments={liveProduction.appointments} orders={liveProduction.orders} clients={clients}/>
    }
@@ -2597,6 +2602,7 @@ function Sidebar({
   ['fidelidade',Users,'Fidelidade'],
   ['consentimentos',ShieldCheck,'Consentimentos'],
   ['alertas',ClipboardList,'Alertas operacionais'],
+  ['integracoes',ShieldCheck,'Integrações'],
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
   ['estoque',ClipboardList,'Estoque'],
@@ -2606,7 +2612,7 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','consentimentos','alertas','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','consentimentos','alertas','integracoes','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
