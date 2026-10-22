@@ -18,6 +18,7 @@ import {InventoryModule,FinanceModule} from './modernizacao/OperationsModules.js
 import {SmartCalendar,ProductionBoard,LoyaltyModule} from './modernizacao/ExperienceModules.jsx';
 import {useLiveProduction} from './modernizacao/useLiveProduction.js';
 import {NotificationConsentModule} from './modernizacao/NotificationConsentModule.jsx';
+import {OperationalAlerts} from './modernizacao/OperationalAlerts.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2251,6 +2252,10 @@ function App(){
     <ProductionBoard appointments={liveProduction.appointments} orders={liveProduction.orders} connectionStatus={liveProduction.status} clients={clients} vehicles={vehicles} employees={employees}/>
    }
 
+   {tab==='alertas'&&canAdmin&&
+    <OperationalAlerts supabase={supabase} appointments={liveProduction.appointments} orders={liveProduction.orders} clients={clients}/>
+   }
+
    {tab==='consentimentos'&&canAdmin&&
     <NotificationConsentModule supabase={supabase} clients={clients}/>
    }
@@ -2588,6 +2593,7 @@ function Sidebar({
   ['producao',ClipboardList,'Produção'],
   ['fidelidade',Users,'Fidelidade'],
   ['consentimentos',ShieldCheck,'Consentimentos'],
+  ['alertas',ClipboardList,'Alertas operacionais'],
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
   ['estoque',ClipboardList,'Estoque'],
@@ -2597,7 +2603,7 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','consentimentos','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','consentimentos','alertas','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
