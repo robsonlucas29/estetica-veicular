@@ -48,3 +48,7 @@ SQL de instalação e testes em `supabase/sql/`; executar exclusivamente no proj
 - Dados sintéticos desta rodada permanecem identificados como HOMOLOGAÇÃO no desenvolvimento para conferência; não são dados reais da operação.
 
 - Verificação final: alteração de 12h para 13h refletida na tela original após a correção. Segundo atendimento concluído em 22/10/2026 às 13h, imagem transferida para o histórico, dois pagamentos fictícios de R$ 100,00 (R$ 200,00 totais), nenhum agendamento pendente e nenhuma notificação enviada.
+
+## Backblaze B2 — preparação
+
+Implementação isolada em `backup-runner/`: cópia de banco e Storage, AES-256-GCM antes do envio, bucket privado e chave restrita, validação do download remoto e template de execução diária em repositório privado separado. Dez testes locais com API simulada passaram. O painel B2 bloqueou este navegador na verificação Cloudflare. Conta/bucket/chave/segredos e executor ainda não foram provisionados; nenhum backup real, agendamento ativo ou teste de restauração completa foi alegado. Detalhes e exclusões estão no README da rotina.
