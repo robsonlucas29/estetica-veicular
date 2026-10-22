@@ -1,3 +1,4 @@
+import './financeOverview.css';
 import React,{useEffect,useMemo,useState} from 'react';
 
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
