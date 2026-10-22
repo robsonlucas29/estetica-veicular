@@ -16,7 +16,7 @@ export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[
  const first=new Date(year,m,1).getDay();
  const days=new Date(year,m+1,0).getDate();
  const unique=useMemo(()=>distinctAppointments(appointments),[appointments]);
- const conflicts=useMemo(()=>overlappingStaffAppointments(appointments),[appointments]);
+ const conflicts=useMemo(()=>overlappingStaffAppointments(appointments,60,services),[appointments,services]);
  const byDay=useMemo(()=>{
   const result=new Map();
   for(const a of unique){
@@ -37,7 +37,7 @@ export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[
    <h3>{month.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h3>
    <button type="button" className="secondary" onClick={()=>setMonth(new Date(year,m+1,1))}>Próximo →</button>
   </div>
-  {conflicts.length>0&&<div className="card" role="status"><strong>Possíveis conflitos de equipe ({conflicts.length})</strong><p className="hint">Aviso preventivo: duração estimada de 60 minutos por atendimento. Confira antes de reagendar.</p>{conflicts.slice(0,8).map((c,i)=><p key={i}>{new Date(c.first.scheduled_at).toLocaleString('pt-BR')} — {c.employeeIds.map(id=>label(employees,id)).join(', ')} · {label(clients,c.first.client_id)} / {label(clients,c.second.client_id)}</p>)}</div>}
+  {conflicts.length>0&&<div className="card" role="status"><strong>Possíveis conflitos de equipe ({conflicts.length})</strong><p className="hint">Aviso preventivo: duração configurada dos serviços (60 minutos por serviço não configurado). Confira antes de reagendar.</p>{conflicts.slice(0,8).map((c,i)=><p key={i}>{new Date(c.first.scheduled_at).toLocaleString('pt-BR')} — {c.employeeIds.map(id=>label(employees,id)).join(', ')} · {label(clients,c.first.client_id)} / {label(clients,c.second.client_id)}</p>)}</div>}
   <div className="smartCalendarGrid" role="grid" aria-label="Calendário mensal">
    {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=><strong key={d} className="smartCalendarWeekday">{d}</strong>)}
    {Array.from({length:first},(_,i)=><span key={'pad'+i}/>)}
