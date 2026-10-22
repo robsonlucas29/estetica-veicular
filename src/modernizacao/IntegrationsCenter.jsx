@@ -41,7 +41,7 @@ export function IntegrationsCenter({supabase}){
   const {data,error}=await supabase.functions.invoke('notification-delivery-dev',{body:{action:'queue',client_id:clientId,channel,message}});
   setBusy(false);
   if(error||data?.error){setNotice(data?.error||error?.message||'Falha ao enfileirar');return;}
-  setNotice('Notificação de teste enfileirada sem envio.');await check();
+  await check();setNotice('Notificação de teste enfileirada sem envio.');
  }
  return <section className="panel">
   <h2>Integrações — ambiente de desenvolvimento</h2>
