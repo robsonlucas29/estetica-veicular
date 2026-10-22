@@ -8,5 +8,6 @@
   "display": "standalone",
   "background_color": "#070709",
   "theme_color": "#070709",
-  "orientation": "any"
+  "orientation": "any",
+  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
 }
