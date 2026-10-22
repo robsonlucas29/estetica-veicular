@@ -1,0 +1,12 @@
+{
+  "name": "Garagem Grau Car 096",
+  "short_name": "Grau Car 096",
+  "description": "Gestão de serviços, agendamentos e produção da Garagem Grau Car 096.",
+  "lang": "pt-BR",
+  "start_url": "/sistema",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070709",
+  "theme_color": "#070709",
+  "orientation": "any"
+}
