@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import {FinanceOverview} from './FinanceOverview.jsx';
 
 const brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const errText=e=>e?.message||'Não foi possível concluir a operação.';
@@ -110,6 +111,7 @@ export function FinanceModule({supabase}){
   <h2>Gestão financeira — despesas</h2>
   <p className="hint">Módulo inicial isolado. Não altera o fechamento de caixa existente.</p>
   {notice&&<p role="status">{notice}</p>}
+  <FinanceOverview supabase={supabase}/>
   <div className="card"><h3>Registrar despesa</h3>
    <form onSubmit={add} className="inline">
     <input aria-label="Descrição da despesa" required placeholder="Descrição" value={description} onChange={e=>setDescription(e.target.value)}/>
