@@ -20,7 +20,7 @@ Não instalar segredos em arquivos `VITE_*`, GitHub, SQL, console ou navegador.
 - `integrations-gateway-dev`: JWT + validação do usuário no Auth + perfil gestor. `action=status` retorna apenas booleanos sobre credenciais, sem revelar valores. `action=ask` envia somente a pergunta fornecida à API Responses da OpenAI (`store:false`) se a chave existir. Não consulta dados de clientes, financeiro nem executa operações.
 - `notification-delivery-dev`: `action=preview` verifica consentimento e credenciais sem enviar; `action=send` só permite envio quando `ENABLE_LIVE_NOTIFICATIONS_DEV=true` e há credenciais. Antes de enviar, revalida opt-in; bloqueia duplicação concorrente por estado `processing`. Meta usa template configurado, Resend usa cabeçalho de idempotência. **Não há worker cron automático**; não há botão de envio no painel.
 - `supabase/modernizacao/05_notification_delivery_dev.sql` adiciona estado `processing`, aplicado apenas em desenvolvimento.
-- Interface `Integrações` visível somente para gestor, com status de provedores, IA para perguntas gerais e prévia de fila. Destinos são mascarados.
+- Interface `Integrações` visível somente para gestor, com status de provedores, IA para perguntas gerais, enfileiramento consentido e prévia de fila. Destinos são mascarados.
 
 ## Limites e riscos pendentes
 - Teste real de conexão aos provedores não executado: credenciais não acessíveis por ferramentas, e o gateway exige JWT de gestor.
