@@ -65,7 +65,7 @@ export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[
  </section>;
 }
 
-export function ProductionBoard({appointments=[],orders=[],clients=[],vehicles=[],employees=[]}){
+export function ProductionBoard({appointments=[],orders=[],clients=[],vehicles=[],employees=[],connectionStatus='aguardando'}){
  const [now,setNow]=useState(()=>Date.now());
  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(t);},[]);
  const today=dateKey(now);
@@ -81,7 +81,7 @@ export function ProductionBoard({appointments=[],orders=[],clients=[],vehicles=[
  ];
  return <section className="panel">
   <h2>Painel de produção</h2>
-  <p className="hint">Visão do dia {today.split('-').reverse().join('/')} · relógio atualizado a cada 30 segundos. Os registros refletem o último carregamento do sistema.</p>
+  <p className="hint">Visão do dia {today.split('-').reverse().join('/')} · relógio atualizado a cada 30 segundos. Sincronização: {connectionStatus}. Atualização automática por eventos, com conferência a cada 60 segundos.</p>
   <div className="inline"><div className="card"><strong>{current.length}</strong><p>Atendimentos abertos hoje</p></div><div className="card"><strong>{done.length}</strong><p>Serviços concluídos hoje</p></div></div>
   <div className="smartProductionGrid">{columns.map(([key,title,list])=><div className="card" key={key}><h3>{title} ({list.length})</h3>
    {list.map(a=><div className="smartProductionTicket" key={a.id}>
