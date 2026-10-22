@@ -5,6 +5,8 @@ export function OperationalAlerts({supabase,appointments=[],orders=[],clients=[]
  const [stock,setStock]=useState([]);
  const [expenses,setExpenses]=useState([]);
  const [notice,setNotice]=useState('');
+ const [serverSummary,setServerSummary]=useState(null);
+ const [serverBusy,setServerBusy]=useState(false);
  const [updated,setUpdated]=useState(null);
  async function refresh(){
   const [i,e]=await Promise.all([
@@ -13,6 +15,13 @@ export function OperationalAlerts({supabase,appointments=[],orders=[],clients=[]
   ]);
   if(i.error||e.error){setNotice((i.error||e.error).message);return;}
   setStock(i.data||[]);setExpenses(e.data||[]);setUpdated(new Date());setNotice('');
+ }
+ async function serverInsights(){
+  setServerBusy(true);setNotice('');
+  const {data,error}=await supabase.functions.invoke('operational-insights-dev',{body:{}});
+  setServerBusy(false);
+  if(error){setNotice('Não foi possível gerar o resumo protegido: '+error.message);return;}
+  setServerSummary(data);
  }
  useEffect(()=>{refresh();},[]);
  const alerts=useMemo(()=>{
@@ -37,7 +46,8 @@ export function OperationalAlerts({supabase,appointments=[],orders=[],clients=[]
  return <section className="panel">
   <h2>Central de alertas operacionais</h2>
   <p className="hint">Indicadores baseados em regras verificáveis, sem envio de dados a provedores de inteligência artificial. As informações financeiras são restritas à gestão.</p>
-  <button type="button" className="secondary" onClick={refresh}>Atualizar alertas</button>
+  <div className="inline"><button type="button" className="secondary" onClick={refresh}>Atualizar alertas</button><button type="button" className="secondary" disabled={serverBusy} onClick={serverInsights}>{serverBusy?"Consultando...":"Resumo seguro do servidor"}</button></div>
+  {serverSummary&&<div className="card" role="status"><h3>Resumo operacional do servidor</h3><p>Estoque baixo: {serverSummary.summary?.low_stock??"—"} · Despesas vencidas: {serverSummary.summary?.overdue_expenses??"—"} · Atendimentos de hoje: {serverSummary.summary?.appointments_today??"—"}</p>{(serverSummary.recommendations||[]).map((t,i)=><p key={i}>{t}</p>)}<small>Regras determinísticas, sem uso de modelo de IA externo.</small></div>}
   {notice&&<p role="alert">{notice}</p>}
   {updated&&<p className="hint">Última consulta: {updated.toLocaleString('pt-BR')}</p>}
   {!alerts.length&&<div className="card"><p>Nenhum alerta encontrado nos dados consultados.</p></div>}
