@@ -4569,7 +4569,8 @@ function Services({
            price:r.price||'',
            discount_percent:
             r.discount_percent||0,
-           description:r.description||''
+           description:r.description||'',
+           ...(isDevelopment?{duration_minutes:r.duration_minutes||60}:{})
           });
          }}
 
