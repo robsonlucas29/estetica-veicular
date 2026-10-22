@@ -8714,6 +8714,15 @@ function Audit({logs}){
 }
 
 
+/* PWA sem cache de dados pessoais: registro apenas em producao/preview HTTPS. */
+if(typeof navigator!=='undefined'&&'serviceWorker' in navigator){
+ window.addEventListener('load',()=>{
+  navigator.serviceWorker.register('/sw.js').catch(error=>{
+   console.warn('Service worker indisponível:',error);
+  });
+ });
+}
+
 /* =========================================================
    INICIALIZAÇÃO
 ========================================================= */
