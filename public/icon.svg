@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="112" fill="#0c0c0e"/>
+<path d="M82 306 122 205c9-23 28-39 54-39h160c26 0 45 16 54 39l40 101" fill="none" stroke="#e32938" stroke-width="26" stroke-linejoin="round"/>
+<path d="M88 306h336v78c0 13-10 23-23 23h-20v-39H131v39h-20c-13 0-23-10-23-23z" fill="#e32938"/>
+<path d="M149 296h214l-26-77H175z" fill="#19191e"/>
+<circle cx="145" cy="335" r="17" fill="#fff"/><circle cx="367" cy="335" r="17" fill="#fff"/>
+<text x="256" y="115" font-size="57" font-family="Arial,sans-serif" font-weight="900" fill="white" text-anchor="middle">GRAU CAR</text>
+<text x="256" y="467" font-size="48" font-family="Arial,sans-serif" font-weight="900" fill="white" text-anchor="middle">096</text>
+</svg>
