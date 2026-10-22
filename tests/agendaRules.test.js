@@ -25,3 +25,17 @@ test('funcionarios multiplos sao considerados',()=>{
  const rows=[{...a('1','2026-10-22T13:00:00Z',null),employee_ids:['a','b']},a('2','2026-10-22T13:15:00Z','b')];
  assert.deepEqual(overlappingStaffAppointments(rows)[0].employeeIds,['b']);
 });
+
+test('duracao cadastrada maior detecta sobreposicao depois de 60 minutos',()=>{
+ const rows=[{...a('1','2026-10-22T13:00:00Z','e'),service_id:'lavagem'},a('2','2026-10-22T14:30:00Z','e')];
+ assert.equal(overlappingStaffAppointments(rows).length,0);
+ assert.equal(overlappingStaffAppointments(rows,60,[{id:'lavagem',duration_minutes:120}]).length,1);
+});
+test('atendimento com dois servicos soma duracoes para alertar',()=>{
+ const rows=[
+  {...a('1','2026-10-22T13:00:00Z','e','grupo'),service_id:'a'},
+  {...a('2','2026-10-22T13:00:00Z','e','grupo'),service_id:'b'},
+  a('3','2026-10-22T14:15:00Z','e')
+ ];
+ assert.equal(overlappingStaffAppointments(rows,60,[{id:'a',duration_minutes:60},{id:'b',duration_minutes:45}]).length,1);
+});
