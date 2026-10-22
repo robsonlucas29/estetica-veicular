@@ -1,0 +1,1 @@
+.financeOverviewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.financeOverviewGrid>div{padding:14px;border:1px solid #47474d;border-radius:12px;display:flex;flex-direction:column;gap:8px}.financeOverviewGrid strong{font-size:1.35rem;overflow-wrap:anywhere}@media(max-width:650px){.financeOverviewGrid{grid-template-columns:1fr}}
