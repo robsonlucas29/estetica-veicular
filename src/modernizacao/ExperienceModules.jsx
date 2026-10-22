@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {distinctAppointments,overlappingStaffAppointments} from './agendaRules.js';
+import {ServiceDurationSettings} from './ServiceDurationSettings.jsx';
 
 const dateKey=value=>{
  if(!value)return '';
@@ -9,14 +10,16 @@ const dateKey=value=>{
 };
 const label=(rows,id,field='name')=>rows.find(x=>x.id===id)?.[field]||'—';
 
-export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[],employees=[],onOpenScheduling}){
+export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[],employees=[],onOpenScheduling,supabase,canManage=false}){
+ const [durationOverrides,setDurationOverrides]=useState({});
+ const configuredServices=useMemo(()=>services.map(s=>durationOverrides[s.id]?{...s,duration_minutes:durationOverrides[s.id]}:s),[services,durationOverrides]);
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [selected,setSelected]=useState(()=>dateKey(new Date()));
  const year=month.getFullYear(),m=month.getMonth();
  const first=new Date(year,m,1).getDay();
  const days=new Date(year,m+1,0).getDate();
  const unique=useMemo(()=>distinctAppointments(appointments),[appointments]);
- const conflicts=useMemo(()=>overlappingStaffAppointments(appointments,60,services),[appointments,services]);
+ const conflicts=useMemo(()=>overlappingStaffAppointments(appointments,60,configuredServices),[appointments,configuredServices]);
  const byDay=useMemo(()=>{
   const result=new Map();
   for(const a of unique){
@@ -37,6 +40,7 @@ export function SmartCalendar({appointments=[],clients=[],vehicles=[],services=[
    <h3>{month.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h3>
    <button type="button" className="secondary" onClick={()=>setMonth(new Date(year,m+1,1))}>Próximo →</button>
   </div>
+  {canManage&&supabase&&<ServiceDurationSettings supabase={supabase} services={configuredServices} onUpdated={(id,n)=>setDurationOverrides(prev=>({...prev,[id]:n}))}/>}
   {conflicts.length>0&&<div className="card" role="status"><strong>Possíveis conflitos de equipe ({conflicts.length})</strong><p className="hint">Aviso preventivo: duração configurada dos serviços (60 minutos por serviço não configurado). Confira antes de reagendar.</p>{conflicts.slice(0,8).map((c,i)=><p key={i}>{new Date(c.first.scheduled_at).toLocaleString('pt-BR')} — {c.employeeIds.map(id=>label(employees,id)).join(', ')} · {label(clients,c.first.client_id)} / {label(clients,c.second.client_id)}</p>)}</div>}
   <div className="smartCalendarGrid" role="grid" aria-label="Calendário mensal">
    {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=><strong key={d} className="smartCalendarWeekday">{d}</strong>)}
