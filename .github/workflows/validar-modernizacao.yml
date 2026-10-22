@@ -24,6 +24,8 @@ jobs:
           cache: npm
       - name: Instalar dependencias
         run: npm ci
+      - name: Testar isolamento do Supabase
+        run: node --test tests/*.test.js
       - name: Validar build
         run: npm run build
       - name: Verificar arquivos gerados
