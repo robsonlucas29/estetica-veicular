@@ -1,0 +1,1 @@
+{"name": "Garagem Grau Car 096 — Testes", "short_name": "Grau Car DEV", "id": "/sistema", "start_url": "/sistema", "scope": "/", "display": "standalone", "background_color": "#111118", "theme_color": "#b31b35", "icons": [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}]}

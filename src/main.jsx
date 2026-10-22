@@ -13,10 +13,22 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
+import DevelopmentWorkspace,{developmentTabs,InstallApp} from './DevelopmentWorkspace.jsx';
+import {DEVELOPMENT_URL,DEVELOPMENT_PUBLIC_KEY} from './development-config.js';
 
-const url=import.meta.env.VITE_SUPABASE_URL;
-const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isDevelopment=import.meta.env.MODE==='development'||import.meta.env.VITE_APP_ENV==='development';
+const url=isDevelopment?DEVELOPMENT_URL:import.meta.env.VITE_SUPABASE_URL;
+const key=isDevelopment?DEVELOPMENT_PUBLIC_KEY:import.meta.env.VITE_SUPABASE_ANON_KEY;
+const developmentProject='https://hgmmabtixqaztuswmivv.supabase.co';
+if(isDevelopment&&url!==developmentProject)throw new Error('A versão de testes só pode usar o banco de desenvolvimento.');
 const supabase=(url&&key)?createClient(url,key):null;
+if(isDevelopment&&supabase){
+ const invoke=supabase.functions.invoke.bind(supabase.functions);
+ supabase.functions.invoke=async(name,options)=>{
+  if(['service-completed-notification','job-application'].includes(name))return {data:{simulated:true,sent:false,message:'Envio desativado no desenvolvimento.'},error:null};
+  return invoke(name,options);
+ };
+}
 
 const money=v=>Number(v||0).toLocaleString('pt-BR',{
  style:'currency',
@@ -2049,7 +2061,7 @@ function App(){
 
 
  return <div
-  className="app"
+  className={isDevelopment?'app devEnvironment':'app'}
   style={
    systemContrast
     ?{
@@ -2133,7 +2145,7 @@ function App(){
    <header>
 
     <div>
-     <h1>A Casa do Grau Máximo</h1>
+     <h1>{isDevelopment?'Garagem Grau Car 096':'A Casa do Grau Máximo'}</h1>
 
      <p>
       {profile.full_name||session.user.email}
@@ -2172,6 +2184,8 @@ function App(){
 
    </header>
 
+
+   {isDevelopment&&developmentTabs.includes(tab)&&(['administrador','gerente'].includes(role)||['agenda-visual','producao'].includes(tab))&&<DevelopmentWorkspace tab={tab} {...common}/>}
 
    {tab==='dashboard'&&
     <Dashboard {...common}/>
@@ -2447,10 +2461,10 @@ function Login({
     <span>Garagem GRAU CAR 096</span>
    </div>
 
-   <h2>Acesso ao sistema</h2>
+   <h2>{isDevelopment?'Acesso ao ambiente de testes':'Acesso ao sistema'}</h2>
 
    <p className="loginIntro">
-    Entre com seu usuário autorizado.
+    {isDevelopment?'Use uma conta criada no banco de desenvolvimento. As contas da produção não são reutilizadas.':'Entre com seu usuário autorizado.'}
    </p>
 
    <input
@@ -2547,6 +2561,7 @@ function Sidebar({
 
  const all=[
   ['dashboard',ClipboardList,'Dashboard'],
+  ...(isDevelopment?[["agenda-visual",CalendarDays,"Agenda visual"],["producao",ClipboardList,"Produção"],["estoque",Tag,"Estoque"],["financeiro",Wallet,"Financeiro"],["fidelidade",Users,"Fidelidade e VIP"],["assistente",MessageCircle,"Assistente IA"],["integracoes",ShieldCheck,"Integrações"]]:[]),
   ['clientes',Users,'Clientes'],
   ['veiculos',Car,'Veículos'],
   ['servicos',Wrench,'Serviços'],
@@ -2559,7 +2574,7 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','relatorios','auditoria','estoque','financeiro','fidelidade','assistente','integracoes']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
@@ -2590,6 +2605,7 @@ function Sidebar({
   </nav>
 
   <div className="asideBottom">
+   {isDevelopment&&<InstallApp/>}
    <span>Perfil: {role}</span>
    <button type="button" onClick={()=>{window.location.href='/';}}><Car size={18}/>Voltar ao site</button>
    <button onClick={signOut}><LogOut size={18}/>Sair</button>
@@ -8686,8 +8702,13 @@ function Audit({logs}){
    INICIALIZAÇÃO
 ========================================================= */
 
+if(isDevelopment&&'serviceWorker' in navigator){
+ window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+ const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='/manifest.webmanifest';document.head.appendChild(manifest);
+}
+
 createRoot(
  document.getElementById('root')
 ).render(
- <Root/>
+ <>{isDevelopment&&<div className="devBanner" role="status">AMBIENTE DE TESTES · Dados separados da produção · Envios reais desativados</div>}<Root/></>
 );
