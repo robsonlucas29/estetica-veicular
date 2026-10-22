@@ -1329,3 +1329,13 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .smartProductionTicket{padding:12px 0;border-top:1px solid #45454b}
 .smartProductionTicket p{margin:6px 0}
 @media(max-width:800px){.smartProductionGrid{grid-template-columns:1fr}.smartCalendarDay{min-height:60px;padding:5px}.smartCalendarDay small{font-size:.6rem}}
+
+/* Modernizacao progressiva: tokens e acessibilidade, sem refatorar telas legadas. */
+:root{--gc-focus:#ff6677;--gc-surface:#161619;--gc-border:#41414a;--gc-radius:14px}
+:where(button,input,select,textarea,a):focus-visible{outline:3px solid var(--gc-focus)!important;outline-offset:3px}
+:where(.panel,.card){overflow-wrap:anywhere}
+:where(.panel) :where(input,select,textarea){max-width:100%}
+:where(.smartCalendarDay,.smartProductionTicket){transition:border-color .16s ease,background-color .16s ease}
+.smartCalendarDay:hover{border-color:#ff596a;background:rgba(229,43,58,.07)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(max-width:600px){.smartCalendarGrid{gap:3px}.smartCalendarDay{min-height:55px}.smartCalendarWeekday{font-size:.7rem}.smartCalendarAppointments{grid-template-columns:minmax(0,1fr)}}
