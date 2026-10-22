@@ -13,7 +13,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
-import DevelopmentWorkspace,{developmentTabs,InstallApp} from './DevelopmentWorkspace.jsx';
+import DevelopmentWorkspace,{developmentTabs,InstallApp,fetchAllRows} from './DevelopmentWorkspace.jsx';
 import {DEVELOPMENT_URL,DEVELOPMENT_PUBLIC_KEY} from './development-config.js';
 
 const isDevelopment=import.meta.env.MODE==='development'||import.meta.env.VITE_APP_ENV==='development';
@@ -1524,76 +1524,76 @@ function App(){
 
    const q=await Promise.all([
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'clients','created_at',false):supabase
      .from('clients')
      .select('*')
-     .order('created_at',{ascending:false}),
+     .order('created_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'vehicles','created_at',false):supabase
      .from('vehicles')
      .select('*')
-     .order('created_at',{ascending:false}),
+     .order('created_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'service_types','name',true):supabase
      .from('service_types')
      .select('*')
-     .order('name'),
+     .order('name')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'vehicle_categories','name',true):supabase
      .from('vehicle_categories')
      .select('*')
-     .order('name'),
+     .order('name')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'service_orders','created_at',false):supabase
      .from('service_orders')
      .select('*')
-     .order('created_at',{ascending:false}),
+     .order('created_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'service_images','created_at',false):supabase
      .from('service_images')
      .select('*')
-     .order('created_at',{ascending:false}),
+     .order('created_at',{ascending:false})),
 
     // ALTERADO: removido limite de 250 para o relatório da auditoria
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'audit_logs_view','created_at',false):supabase
      .from('audit_logs_view')
      .select('*')
-     .order('created_at',{ascending:false}),
+     .order('created_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'appointments','scheduled_at',true):supabase
      .from('appointments')
      .select('*')
-     .order('scheduled_at'),
+     .order('scheduled_at')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'employees','name',true):supabase
      .from('employees')
      .select('*')
-     .order('name'),
+     .order('name')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'payment_methods','name',true):supabase
      .from('payment_methods')
      .select('*')
-     .order('name'),
+     .order('name')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'payments','paid_at',false):supabase
      .from('payments')
      .select('*')
-     .order('paid_at',{ascending:false}),
+     .order('paid_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'cash_closings','closed_at',false):supabase
      .from('cash_closings')
      .select('*')
-     .order('closed_at',{ascending:false}),
+     .order('closed_at',{ascending:false})),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'profiles','full_name',true):supabase
      .from('profiles')
      .select('*')
-     .order('full_name'),
+     .order('full_name')),
 
-    supabase
+    (isDevelopment?fetchAllRows(supabase,'appointment_files','created_at',false):supabase
      .from('appointment_files')
      .select('*')
-     .order('created_at',{ascending:false})
+     .order('created_at',{ascending:false}))
 
    ]);
 
@@ -4359,7 +4359,8 @@ function Services({
   category_id:'',
   price:'',
   discount_percent:'0',
-  description:''
+  description:'',
+  ...(isDevelopment?{duration_minutes:60}:{})
  };
 
  const [f,setF]=useState(empty);
@@ -4417,6 +4418,7 @@ function Services({
 
  const serviceFields=
   <div className="formGrid">
+   {isDevelopment&&<label>Duração em minutos<input type="number" min="5" max="720" required value={f.duration_minutes||60} onChange={e=>setF({...f,duration_minutes:Number(e.target.value)})}/></label>}
 
    <input
     placeholder="🔧 Nome do serviço"
@@ -5701,6 +5703,20 @@ function Appointments({
    f.appointment_group_id||
    crypto.randomUUID();
 
+
+  if(isDevelopment){
+   const chosen=services.filter(s=>f.service_ids.includes(s.id));
+   const total=Number(f.charged_amount),subtotal=chosen.reduce((n,s)=>n+Number(finalPrice(s)||0),0);
+   let allocated=0;
+   const payload=chosen.map((sv,i)=>{const amount=i===chosen.length-1?Number((total-allocated).toFixed(2)):Number((subtotal?Number(finalPrice(sv)||0)*total/subtotal:total/chosen.length).toFixed(2));allocated+=amount;return {client_id:f.client_id,vehicle_id:f.vehicle_id,service_id:sv.id,employee_ids:f.employee_ids,notes:f.notes,status:f.status,discount_percent:Number(f.discount_percent||0),charged_amount:amount};});
+   const completing=f.status==='concluido';
+   if(completing&&!confirm('Confirmar conclusão e pagamento no desenvolvimento? Nenhuma mensagem será enviada.'))return;
+   const {data,error}=await supabase.rpc('save_appointment_group_dev',{p_group:groupId,p_rows:payload,p_complete:completing,p_method:f.payment_method_id,p_when:when});
+   if(error)return alert(error.message);
+   setAppointments(current=>[...(data.appointments||[]),...current.filter(a=>(a.appointment_group_id||a.id)!==groupId&&!oldIds.includes(a.id))]);
+   if(completing){setImages(current=>[...(data.images||[]),...current]);setOrders(current=>[...data.orders,...current]);setPayments(current=>[data.payment,...current]);setAppointmentFiles(current=>current.filter(a=>a.appointment_group_id!==groupId));await uploadImages(data.orders[0].id,f.files);}else await uploadAppointmentFiles(groupId,f.files);
+   clearForm();return;
+  }
 
   if(f.status==='concluido'){
 
@@ -7541,6 +7557,7 @@ useState(today.split('-').reverse().join('/'));
 
 
   async function checkAutomaticClosing(){
+   if(isDevelopment)return;
 
    const now=new Date();
 
@@ -7702,7 +7719,7 @@ useState(today.split('-').reverse().join('/'));
 
   {canAdmin&&<Panel title="Formas de pagamento" action={<button className="primary" onClick={addMethod}><Plus size={17}/>Adicionar</button>}><div className="formGrid two"><input placeholder="💳 Ex.: PIX, Dinheiro, Cartão" value={methodName} onChange={e=>setMethodName(e.target.value)}/></div><div className="methodChips">{paymentMethods.map(m=><span key={m.id}><i>{paymentSymbol(m.name)}</i>{m.name}<button onClick={()=>remove('payment_methods',m.id,setPaymentMethods,'Excluiu forma de pagamento')}><X size={14}/></button></span>)}</div></Panel>}
 
-  <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.</p></Panel>
+  <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. {isDevelopment?'No desenvolvimento, o servidor fecha os dias concluídos às 00:05, mesmo com o navegador fechado.':'O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.'}</p></Panel>
 
   <Panel title="Fechamentos anteriores">
    <p className="hint">Lançamentos retroativos entram na data do serviço. Se o caixa já estava fechado, a diferença aparece abaixo e o fechamento original permanece preservado para conferência.</p>
