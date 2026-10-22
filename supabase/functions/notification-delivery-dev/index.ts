@@ -17,6 +17,24 @@ Deno.serve(async req=>{
  const {data:profile}=await userDb.from('profiles').select('role').eq('id',user.id).maybeSingle();
  if(!['administrador','gerente'].includes(profile?.role))return reply({error:'Sem permissão'},403);
  let body={};try{body=await req.json();}catch{return reply({error:'JSON inválido'},400);}
+ if(body.action==='queue'){
+  const clientId=String(body.client_id||'');
+  const channel=String(body.channel||'');
+  if(!/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(clientId)||!['email','whatsapp'].includes(channel))return reply({error:'Cliente ou canal inválido'},400);
+  const {data:client}=await userDb.from('clients').select('id,email,phone').eq('id',clientId).maybeSingle();
+  const {data:consent}=await userDb.from('notification_consents').select('email_opt_in,whatsapp_opt_in').eq('client_id',clientId).maybeSingle();
+  if(!client||!consent||(channel==='email'&&!consent.email_opt_in)||(channel==='whatsapp'&&!consent.whatsapp_opt_in))return reply({error:'Cliente ou consentimento indisponível'},409);
+  const recipient=String(channel==='email'?client.email||'':client.phone||'').trim();
+  if(channel==='email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient))return reply({error:'E-mail do cliente inválido'},422);
+  if(channel==='whatsapp'&&!/^\\+?[0-9]{10,15}$/.test(recipient))return reply({error:'Telefone do cliente deve estar no formato internacional'},422);
+  const key=env('SUPABASE_SERVICE_ROLE_KEY');
+  if(!key)return reply({error:'Credencial do servidor indisponível'},503);
+  const admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+  const message=String(body.message||'Consulte nossa equipe para detalhes.').trim().slice(0,800);
+  const {data:queued,error:queueError}=await admin.from('notification_outbox').insert({event_key:'manual-dev-'+crypto.randomUUID(),channel,recipient,template_name:'service_update',payload:{client_id:clientId,message,requested_by:user.id},status:'pending'}).select('id').single();
+  if(queueError)return reply({error:'Não foi possível criar a prévia da notificação'},422);
+  return reply({queued:true,id:queued.id,live_sent:false,channel});
+ }
  const id=String(body.id||'');
  if(!/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(id))return reply({error:'Identificador inválido'},400);
  if(!['preview','send'].includes(body.action))return reply({error:'Ação inválida'},400);
