@@ -16,6 +16,7 @@ import './styles.css';
 import {checkSupabaseEnvironment} from './config/supabaseSafety.js';
 import {InventoryModule,FinanceModule} from './modernizacao/OperationsModules.jsx';
 import {SmartCalendar,ProductionBoard,LoyaltyModule} from './modernizacao/ExperienceModules.jsx';
+import {useLiveProduction} from './modernizacao/useLiveProduction.js';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1326,6 +1327,7 @@ function App(){
  const [payments,setPayments]=useState([]);
  const [cashClosings,setCashClosings]=useState([]);
  const [profiles,setProfiles]=useState([]);
+ const liveProduction=useLiveProduction(supabase,Boolean(session?.user&&profile),appointments,orders);
 
  const [login,setLogin]=useState({
   email:'',
@@ -2241,11 +2243,11 @@ function App(){
    }
 
    {tab==='agenda-visual'&&
-    <SmartCalendar appointments={appointments} clients={clients} vehicles={vehicles} services={services} employees={employees} onOpenScheduling={()=>setTab('agendamentos')}/>
+    <SmartCalendar appointments={liveProduction.appointments} clients={clients} vehicles={vehicles} services={services} employees={employees} onOpenScheduling={()=>setTab('agendamentos')}/>
    }
 
    {tab==='producao'&&
-    <ProductionBoard appointments={appointments} orders={orders} clients={clients} vehicles={vehicles} employees={employees}/>
+    <ProductionBoard appointments={liveProduction.appointments} orders={liveProduction.orders} connectionStatus={liveProduction.status} clients={clients} vehicles={vehicles} employees={employees}/>
    }
 
    {tab==='fidelidade'&&canAdmin&&
