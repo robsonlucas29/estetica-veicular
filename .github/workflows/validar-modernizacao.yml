@@ -1,0 +1,30 @@
+name: Validar modernizacao
+
+on:
+  push:
+    branches:
+      - desenvolvimento-modernizacao
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Validar build
+        run: npm run build
+      - name: Verificar arquivos gerados
+        run: test -f dist/index.html
