@@ -2185,7 +2185,7 @@ function App(){
    </header>
 
 
-   {isDevelopment&&developmentTabs.includes(tab)&&(['administrador','gerente'].includes(role)||['agenda-visual','producao'].includes(tab))&&<DevelopmentWorkspace tab={tab} {...common}/>}
+   {isDevelopment&&developmentTabs.includes(tab)&&(['administrador','gerente'].includes(role)||['agenda-visual','producao'].includes(tab))&&<DevelopmentWorkspace tab={tab} {...common} setAppointments={setAppointments}/>}
 
    {tab==='dashboard'&&
     <Dashboard {...common}/>
