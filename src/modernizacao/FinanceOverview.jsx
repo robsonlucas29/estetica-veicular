@@ -14,8 +14,8 @@ export function FinanceOverview({supabase}){
   if(!start||!end||start>end){setError('Informe um período válido.');return;}
   setLoading(true);setError('');
   const [p,e]=await Promise.all([
-   supabase.from('payments').select('id,amount,paid_at').gte('paid_at',start+'T00:00:00').lt('paid_at',nextDay(end)+'T00:00:00').limit(10000),
-   supabase.from('finance_expenses').select('id,amount,paid_on,status').eq('status','pago').gte('paid_on',start).lte('paid_on',end).limit(10000)
+   supabase.from('payments').select('id,amount,paid_at').gte('paid_at',start+'T00:00:00').lt('paid_at',nextDay(end)+'T00:00:00').limit(1000),
+   supabase.from('finance_expenses').select('id,amount,paid_on,status').eq('status','pago').gte('paid_on',start).lte('paid_on',end).limit(1000)
   ]);
   setLoading(false);
   if(p.error||e.error){setError((p.error||e.error).message);return;}
@@ -49,7 +49,7 @@ export function FinanceOverview({supabase}){
    <div><small>Despesas pagas</small><strong>{money(totals.outflow)}</strong></div>
    <div><small>Saldo do período</small><strong>{money(totals.net)}</strong></div>
   </div>
-  <small className="hint">Registros consultados: {payments.length} pagamentos e {expenses.length} despesas. Limite de 10 mil por conjunto.</small>
+  <small className="hint">Registros consultados: {payments.length} pagamentos e {expenses.length} despesas. Até 1.000 registros por conjunto; períodos maiores exigem exportação paginada.</small>
  </div>;
 }
 
