@@ -17,6 +17,7 @@ import {checkSupabaseEnvironment} from './config/supabaseSafety.js';
 import {InventoryModule,FinanceModule} from './modernizacao/OperationsModules.jsx';
 import {SmartCalendar,ProductionBoard,LoyaltyModule} from './modernizacao/ExperienceModules.jsx';
 import {useLiveProduction} from './modernizacao/useLiveProduction.js';
+import {NotificationConsentModule} from './modernizacao/NotificationConsentModule.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2250,6 +2251,10 @@ function App(){
     <ProductionBoard appointments={liveProduction.appointments} orders={liveProduction.orders} connectionStatus={liveProduction.status} clients={clients} vehicles={vehicles} employees={employees}/>
    }
 
+   {tab==='consentimentos'&&canAdmin&&
+    <NotificationConsentModule supabase={supabase} clients={clients}/>
+   }
+
    {tab==='fidelidade'&&canAdmin&&
     <LoyaltyModule supabase={supabase} clients={clients} canAdmin={canAdmin}/>
    }
@@ -2582,6 +2587,7 @@ function Sidebar({
   ['agenda-visual',CalendarDays,'Agenda visual'],
   ['producao',ClipboardList,'Produção'],
   ['fidelidade',Users,'Fidelidade'],
+  ['consentimentos',ShieldCheck,'Consentimentos'],
   ['equipe',UserRoundCog,'Equipe'],
   ['caixa',Wallet,'Caixa'],
   ['estoque',ClipboardList,'Estoque'],
@@ -2591,7 +2597,7 @@ function Sidebar({
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
- const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','relatorios','auditoria']);
+ const managerOnly=new Set(['servicos','equipe','caixa','financeiro','fidelidade','consentimentos','relatorios','auditoria']);
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
