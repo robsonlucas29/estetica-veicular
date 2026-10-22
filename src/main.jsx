@@ -5062,7 +5062,7 @@ function AppointmentSearchSelect({title,placeholder,value,items,onChange,search,
  const normalized=String(search||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const matches=items.filter(item=>String(item.label).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(normalized));
  const [open,setOpen]=useState(false);
- return <AppointmentMultiPicker label={{title,empty:placeholder,selected:placeholder}} count={0} open={open}
+ return <AppointmentMultiPicker label={{title,empty:selected?.label||placeholder,selected:placeholder}} count={0} open={open}
   onToggle={v=>{setOpen(v);if(!v)onSearch('')}} search={search} onSearch={onSearch} placeholder={`Pesquisar ${title.toLowerCase()}...`}>
   {selected&&<div className="appointmentPickerCurrent">Selecionado: {selected.label}</div>}
   {matches.map(item=><button className={`appointmentPickerOption${String(value)===String(item.id)?' isSelected':''}`} type="button" key={item.id} onClick={()=>{onChange(item.id);setOpen(false);onSearch('')}}>{item.label}</button>)}
