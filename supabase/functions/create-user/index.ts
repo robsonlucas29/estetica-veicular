@@ -16,6 +16,8 @@ function json(body: unknown, status = 200) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (Deno.env.get('SUPABASE_URL') !== 'https://hgmmabtixqaztuswmivv.supabase.co') return json({error:'Somente desenvolvimento.'},403)
+  if (req.method !== 'POST') return json({error:'Método não permitido.'},405)
 
   try {
     const auth = req.headers.get('Authorization')

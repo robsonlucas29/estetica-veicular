@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "electron": "electron electron/main.cjs",
     "desktop:dev": "concurrently \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron electron/main.cjs\"",
-    "desktop:build": "vite build && electron-builder"
+    "desktop:build": "vite build && electron-builder",
+    "build:dev": "vite build --mode development"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
@@ -31,7 +32,7 @@
   },
   "build": {
     "appId": "br.com.esteticaveicular.sistema",
-    "productName": "Estética Veicular",
+    "productName": "Est\u00e9tica Veicular",
     "files": [
       "dist/**/*",
       "electron/**/*",

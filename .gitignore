@@ -2,3 +2,7 @@
 node_modules/
 
 supabase/.temp/
+
+.env.*
+.vercel/
+release/
