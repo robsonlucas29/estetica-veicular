@@ -14,21 +14,17 @@ import * as XLSX from 'xlsx-js-style';
 import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
 import DevelopmentWorkspace,{developmentTabs,InstallApp,fetchAllRows} from './DevelopmentWorkspace.jsx';
-import {DEVELOPMENT_URL,DEVELOPMENT_PUBLIC_KEY} from './development-config.js';
+import {runtime} from './runtime-environment.js';
 
-const isDevelopment=import.meta.env.MODE==='development'||import.meta.env.VITE_APP_ENV==='development';
-const url=isDevelopment?DEVELOPMENT_URL:import.meta.env.VITE_SUPABASE_URL;
-const key=isDevelopment?DEVELOPMENT_PUBLIC_KEY:import.meta.env.VITE_SUPABASE_ANON_KEY;
-const developmentProject='https://hgmmabtixqaztuswmivv.supabase.co';
-if(isDevelopment&&url!==developmentProject)throw new Error('A versão de testes só pode usar o banco de desenvolvimento.');
-const supabase=(url&&key)?createClient(url,key):null;
-if(isDevelopment&&supabase){
- const invoke=supabase.functions.invoke.bind(supabase.functions);
- supabase.functions.invoke=async(name,options)=>{
-  if(['service-completed-notification','job-application'].includes(name))return {data:{simulated:true,sent:false,message:'Envio desativado no desenvolvimento.'},error:null};
-  return invoke(name,options);
- };
-}
+const {isDevelopment,url,key,modernized}=runtime;
+const supabase=createClient(url,key);
+// Defesa no cliente; as funções de entrega também permanecem bloqueadas no servidor.
+const invoke=supabase.functions.invoke.bind(supabase.functions);
+supabase.functions.invoke=async(name,options)=>{
+ if(name==='job-application')return {data:null,error:new Error('O envio de candidaturas está temporariamente desativado. Entre em contato com a empresa.')};
+ if(['service-completed-notification','notification-delivery','notification-delivery-dev'].includes(name))return {data:{simulated:true,sent:false,message:'Envios reais desativados.'},error:null};
+ return invoke(name,options);
+};
 
 const money=v=>Number(v||0).toLocaleString('pt-BR',{
  style:'currency',
@@ -1524,73 +1520,73 @@ function App(){
 
    const q=await Promise.all([
 
-    (isDevelopment?fetchAllRows(supabase,'clients','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'clients','created_at',false):supabase
      .from('clients')
      .select('*')
      .order('created_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'vehicles','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'vehicles','created_at',false):supabase
      .from('vehicles')
      .select('*')
      .order('created_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'service_types','name',true):supabase
+    (modernized?fetchAllRows(supabase,'service_types','name',true):supabase
      .from('service_types')
      .select('*')
      .order('name')),
 
-    (isDevelopment?fetchAllRows(supabase,'vehicle_categories','name',true):supabase
+    (modernized?fetchAllRows(supabase,'vehicle_categories','name',true):supabase
      .from('vehicle_categories')
      .select('*')
      .order('name')),
 
-    (isDevelopment?fetchAllRows(supabase,'service_orders','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'service_orders','created_at',false):supabase
      .from('service_orders')
      .select('*')
      .order('created_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'service_images','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'service_images','created_at',false):supabase
      .from('service_images')
      .select('*')
      .order('created_at',{ascending:false})),
 
     // ALTERADO: removido limite de 250 para o relatório da auditoria
-    (isDevelopment?fetchAllRows(supabase,'audit_logs_view','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'audit_logs_view','created_at',false):supabase
      .from('audit_logs_view')
      .select('*')
      .order('created_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'appointments','scheduled_at',true):supabase
+    (modernized?fetchAllRows(supabase,'appointments','scheduled_at',true):supabase
      .from('appointments')
      .select('*')
      .order('scheduled_at')),
 
-    (isDevelopment?fetchAllRows(supabase,'employees','name',true):supabase
+    (modernized?fetchAllRows(supabase,'employees','name',true):supabase
      .from('employees')
      .select('*')
      .order('name')),
 
-    (isDevelopment?fetchAllRows(supabase,'payment_methods','name',true):supabase
+    (modernized?fetchAllRows(supabase,'payment_methods','name',true):supabase
      .from('payment_methods')
      .select('*')
      .order('name')),
 
-    (isDevelopment?fetchAllRows(supabase,'payments','paid_at',false):supabase
+    (modernized?fetchAllRows(supabase,'payments','paid_at',false):supabase
      .from('payments')
      .select('*')
      .order('paid_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'cash_closings','closed_at',false):supabase
+    (modernized?fetchAllRows(supabase,'cash_closings','closed_at',false):supabase
      .from('cash_closings')
      .select('*')
      .order('closed_at',{ascending:false})),
 
-    (isDevelopment?fetchAllRows(supabase,'profiles','full_name',true):supabase
+    (modernized?fetchAllRows(supabase,'profiles','full_name',true):supabase
      .from('profiles')
      .select('*')
      .order('full_name')),
 
-    (isDevelopment?fetchAllRows(supabase,'appointment_files','created_at',false):supabase
+    (modernized?fetchAllRows(supabase,'appointment_files','created_at',false):supabase
      .from('appointment_files')
      .select('*')
      .order('created_at',{ascending:false}))
@@ -2185,7 +2181,7 @@ function App(){
    </header>
 
 
-   {isDevelopment&&developmentTabs.includes(tab)&&(['administrador','gerente'].includes(role)||['agenda-visual','producao'].includes(tab))&&<DevelopmentWorkspace tab={tab} {...common} setAppointments={setAppointments}/>}
+   {modernized&&developmentTabs.includes(tab)&&(['administrador','gerente'].includes(role)||['agenda-visual','producao'].includes(tab))&&<DevelopmentWorkspace tab={tab} {...common} setAppointments={setAppointments}/>}
 
    {tab==='dashboard'&&
     <Dashboard {...common}/>
@@ -2561,7 +2557,7 @@ function Sidebar({
 
  const all=[
   ['dashboard',ClipboardList,'Dashboard'],
-  ...(isDevelopment?[["agenda-visual",CalendarDays,"Agenda visual"],["producao",ClipboardList,"Produção"],["estoque",Tag,"Estoque"],["financeiro",Wallet,"Financeiro"],["fidelidade",Users,"Fidelidade e VIP"],["assistente",MessageCircle,"Assistente IA"],["integracoes",ShieldCheck,"Integrações"]]:[]),
+  ...(modernized?[["agenda-visual",CalendarDays,"Agenda visual"],["producao",ClipboardList,"Produção"],["estoque",Tag,"Estoque"],["financeiro",Wallet,"Financeiro"],["fidelidade",Users,"Fidelidade e VIP"],["assistente",MessageCircle,"Assistente IA"],["integracoes",ShieldCheck,"Integrações"]]:[]),
   ['clientes',Users,'Clientes'],
   ['veiculos',Car,'Veículos'],
   ['servicos',Wrench,'Serviços'],
@@ -2605,7 +2601,7 @@ function Sidebar({
   </nav>
 
   <div className="asideBottom">
-   {isDevelopment&&<InstallApp/>}
+   {modernized&&<InstallApp/>}
    <span>Perfil: {role}</span>
    <button type="button" onClick={()=>{window.location.href='/';}}><Car size={18}/>Voltar ao site</button>
    <button onClick={signOut}><LogOut size={18}/>Sair</button>
@@ -4360,7 +4356,7 @@ function Services({
   price:'',
   discount_percent:'0',
   description:'',
-  ...(isDevelopment?{duration_minutes:60}:{})
+  ...(modernized?{duration_minutes:60}:{})
  };
 
  const [f,setF]=useState(empty);
@@ -4418,7 +4414,7 @@ function Services({
 
  const serviceFields=
   <div className="formGrid">
-   {isDevelopment&&<label>Duração em minutos<input type="number" min="5" max="720" required value={f.duration_minutes||60} onChange={e=>setF({...f,duration_minutes:Number(e.target.value)})}/></label>}
+   {modernized&&<label>Duração em minutos<input type="number" min="5" max="720" required value={f.duration_minutes||60} onChange={e=>setF({...f,duration_minutes:Number(e.target.value)})}/></label>}
 
    <input
     placeholder="🔧 Nome do serviço"
@@ -4570,7 +4566,7 @@ function Services({
            discount_percent:
             r.discount_percent||0,
            description:r.description||'',
-           ...(isDevelopment?{duration_minutes:r.duration_minutes||60}:{})
+           ...(modernized?{duration_minutes:r.duration_minutes||60}:{})
           });
          }}
 
@@ -5705,14 +5701,14 @@ function Appointments({
    crypto.randomUUID();
 
 
-  if(isDevelopment){
+  if(modernized){
    const chosen=services.filter(s=>f.service_ids.includes(s.id));
    const total=Number(f.charged_amount),subtotal=chosen.reduce((n,s)=>n+Number(finalPrice(s)||0),0);
    let allocated=0;
    const payload=chosen.map((sv,i)=>{const amount=i===chosen.length-1?Number((total-allocated).toFixed(2)):Number((subtotal?Number(finalPrice(sv)||0)*total/subtotal:total/chosen.length).toFixed(2));allocated+=amount;return {client_id:f.client_id,vehicle_id:f.vehicle_id,service_id:sv.id,employee_ids:f.employee_ids,notes:f.notes,status:f.status,discount_percent:Number(f.discount_percent||0),charged_amount:amount};});
    const completing=f.status==='concluido';
-   if(completing&&!confirm('Confirmar conclusão e pagamento no desenvolvimento? Nenhuma mensagem será enviada.'))return;
-   const {data,error}=await supabase.rpc('save_appointment_group_dev',{p_group:groupId,p_rows:payload,p_complete:completing,p_method:f.payment_method_id,p_when:when});
+   if(completing&&!confirm('Confirmar conclusão e pagamento? Nenhuma mensagem será enviada.'))return;
+   const {data,error}=await supabase.rpc(runtime.rpc.save,{p_group:groupId,p_rows:payload,p_complete:completing,p_method:f.payment_method_id,p_when:when});
    if(error)return alert(error.message);
    setAppointments(current=>[...(data.appointments||[]),...current.filter(a=>(a.appointment_group_id||a.id)!==groupId&&!oldIds.includes(a.id))]);
    if(completing){setImages(current=>[...(data.images||[]),...current]);setOrders(current=>[...data.orders,...current]);setPayments(current=>[data.payment,...current]);setAppointmentFiles(current=>current.filter(a=>a.appointment_group_id!==groupId));await uploadImages(data.orders[0].id,f.files);}else await uploadAppointmentFiles(groupId,f.files);
@@ -7558,7 +7554,7 @@ useState(today.split('-').reverse().join('/'));
 
 
   async function checkAutomaticClosing(){
-   if(isDevelopment)return;
+   if(modernized)return;
 
    const now=new Date();
 
@@ -7720,7 +7716,7 @@ useState(today.split('-').reverse().join('/'));
 
   {canAdmin&&<Panel title="Formas de pagamento" action={<button className="primary" onClick={addMethod}><Plus size={17}/>Adicionar</button>}><div className="formGrid two"><input placeholder="💳 Ex.: PIX, Dinheiro, Cartão" value={methodName} onChange={e=>setMethodName(e.target.value)}/></div><div className="methodChips">{paymentMethods.map(m=><span key={m.id}><i>{paymentSymbol(m.name)}</i>{m.name}<button onClick={()=>remove('payment_methods',m.id,setPaymentMethods,'Excluiu forma de pagamento')}><X size={14}/></button></span>)}</div></Panel>}
 
-  <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. {isDevelopment?'No desenvolvimento, o servidor fecha os dias concluídos às 00:05, mesmo com o navegador fechado.':'O sistema também verifica automaticamente o fechamento às 23:59 enquanto estiver em execução.'}</p></Panel>
+  <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. O servidor fecha os dias concluídos às 00:05, mesmo com o navegador fechado.</p></Panel>
 
   <Panel title="Fechamentos anteriores">
    <p className="hint">Lançamentos retroativos entram na data do serviço. Se o caixa já estava fechado, a diferença aparece abaixo e o fechamento original permanece preservado para conferência.</p>
@@ -8720,7 +8716,7 @@ function Audit({logs}){
    INICIALIZAÇÃO
 ========================================================= */
 
-if(isDevelopment&&'serviceWorker' in navigator){
+if(modernized&&'serviceWorker' in navigator){
  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
  const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='/manifest.webmanifest';document.head.appendChild(manifest);
 }
