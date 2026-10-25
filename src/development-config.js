@@ -1,0 +1,3 @@
+// Identificadores públicos do ambiente de testes; nunca adicionar chaves de servidor.
+export const DEVELOPMENT_URL='https://hgmmabtixqaztuswmivv.supabase.co';
+export const DEVELOPMENT_PUBLIC_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnbW1hYnRpeHFhenR1c3dtaXZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2ODI1ODMsImV4cCI6MjEwODI1ODU4M30.t5tJG38f_KM1EUxcJkpawF_cCM5bO8I48lN7SRF_PWU';
