@@ -17,7 +17,7 @@ Deno.serve(async(req)=>{
  const {data:profile}=await db.from('profiles').select('role').eq('id',user.id).maybeSingle();
  if(!['administrador','gerente'].includes(profile?.role))return reply({error:'Acesso restrito à gestão'},403);
  let body={};try{body=await req.json();}catch{return reply({error:'JSON inválido'},400);}
- if(body.action==='status')return reply({providers:{meta:{configured:Boolean(env('META_WHATSAPP_TOKEN')&&env('META_PHONE_NUMBER_ID')&&env('META_TEMPLATE_NAME'))},resend:{configured:Boolean(env('RESEND_API_KEY')&&env('RESEND_FROM_EMAIL'))},openai:{configured:Boolean(env('OPENAI_API_KEY'))}},messaging_live_enabled:false,environment:'production',secrets_exposed:false});
+ if(body.action==='status')return reply({providers:{meta:{configured:Boolean(env('META_WHATSAPP_TOKEN')&&env('META_PHONE_NUMBER_ID')&&env('META_TEMPLATE_NAME'))},resend:{configured:Boolean(env('RESEND_API_KEY')&&env('RESEND_FROM_EMAIL'))},openai:{configured:Boolean(env('OPENAI_API_KEY'))}},messaging_live_enabled:true,email_live_enabled:true,whatsapp_live_enabled:false,environment:'production',secrets_exposed:false});
  if(body.action!=='ask')return reply({error:'Ação inválida'},400);
  const question=String(body.question||'').trim();
  if(question.length<4||question.length>1200)return reply({error:'Pergunta deve conter entre 4 e 1200 caracteres'},400);

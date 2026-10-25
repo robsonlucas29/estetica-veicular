@@ -18,11 +18,11 @@ import {runtime} from './runtime-environment.js';
 
 const {isDevelopment,url,key,modernized}=runtime;
 const supabase=createClient(url,key);
-// Defesa no cliente; as funções de entrega também permanecem bloqueadas no servidor.
+// Desenvolvimento permanece sem envios reais; produção usa funções autenticadas.
 const invoke=supabase.functions.invoke.bind(supabase.functions);
 supabase.functions.invoke=async(name,options)=>{
- if(name==='job-application')return {data:null,error:new Error('O envio de candidaturas está temporariamente desativado. Entre em contato com a empresa.')};
- if(['service-completed-notification','notification-delivery','notification-delivery-dev'].includes(name))return {data:{simulated:true,sent:false,message:'Envios reais desativados.'},error:null};
+ if(isDevelopment&&name==='job-application')return {data:null,error:new Error('O envio de candidaturas está temporariamente desativado. Entre em contato com a empresa.')};
+ if(isDevelopment&&['service-completed-notification','notification-delivery','notification-delivery-dev'].includes(name))return {data:{simulated:true,sent:false,message:'Envios reais desativados.'},error:null};
  return invoke(name,options);
 };
 
@@ -5295,6 +5295,7 @@ function Appointments({
      'service-completed-notification',
      {
       body:{
+       service_order_id:rows[0].id,
        clientName:c?.name,
        clientEmail:c?.email||'',
        clientPhone:
@@ -5707,11 +5708,11 @@ function Appointments({
    let allocated=0;
    const payload=chosen.map((sv,i)=>{const amount=i===chosen.length-1?Number((total-allocated).toFixed(2)):Number((subtotal?Number(finalPrice(sv)||0)*total/subtotal:total/chosen.length).toFixed(2));allocated+=amount;return {client_id:f.client_id,vehicle_id:f.vehicle_id,service_id:sv.id,employee_ids:f.employee_ids,notes:f.notes,status:f.status,discount_percent:Number(f.discount_percent||0),charged_amount:amount};});
    const completing=f.status==='concluido';
-   if(completing&&!confirm('Confirmar conclusão e pagamento? Nenhuma mensagem será enviada.'))return;
+   if(completing&&!confirm('Confirmar conclusão e pagamento? O aviso por e-mail será enviado ao cliente cadastrado. WhatsApp ainda indisponível.'))return;
    const {data,error}=await supabase.rpc(runtime.rpc.save,{p_group:groupId,p_rows:payload,p_complete:completing,p_method:f.payment_method_id,p_when:when});
    if(error)return alert(error.message);
    setAppointments(current=>[...(data.appointments||[]),...current.filter(a=>(a.appointment_group_id||a.id)!==groupId&&!oldIds.includes(a.id))]);
-   if(completing){setImages(current=>[...(data.images||[]),...current]);setOrders(current=>[...data.orders,...current]);setPayments(current=>[data.payment,...current]);setAppointmentFiles(current=>current.filter(a=>a.appointment_group_id!==groupId));await uploadImages(data.orders[0].id,f.files);}else await uploadAppointmentFiles(groupId,f.files);
+   if(completing){setImages(current=>[...(data.images||[]),...current]);setOrders(current=>[...data.orders,...current]);setPayments(current=>[data.payment,...current]);setAppointmentFiles(current=>current.filter(a=>a.appointment_group_id!==groupId));await uploadImages(data.orders[0].id,f.files);await notifyAppointmentCompletion(data.orders,total);}else await uploadAppointmentFiles(groupId,f.files);
    clearForm();return;
   }
 

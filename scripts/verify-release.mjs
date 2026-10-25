@@ -17,7 +17,7 @@ try{
  assert.throws(()=>resolveEnvironment({...prod,VITE_SUPABASE_ANON_KEY:jwt('upurwxqorziaakucrstm','service_role')}));
  console.log('PASS: separação de banco, chave anon, funções e RPCs por ambiente; credenciais privilegiadas rejeitadas');
  // Execute the actual disabled handlers. Any attempted fetch fails this test.
- for(const name of ['job-application','service-completed-notification','notification-delivery']){
+ for(const name of ['notification-delivery']){
   const source=await readFile(new URL('../supabase/functions/'+name+'/index.ts',import.meta.url),'utf8');let handler;
   new Function('Deno','fetch',source)({serve:h=>{handler=h}},()=>{throw Error('Envio externo proibido')});
   const response=await handler(new Request('https://example.invalid',{method:'POST',body:'{}'}));
