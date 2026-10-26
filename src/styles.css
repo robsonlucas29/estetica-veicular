@@ -1317,3 +1317,5 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .appointmentPickerOption:hover,.appointmentPickerOption.isSelected{background:#3b111b;color:#fff}
 .appointmentPickerCurrent{font-size:12px;color:#ffb3be;padding:7px 9px;border-bottom:1px solid #34343a;margin-bottom:5px}
 .appointmentPickerEmpty{padding:12px;color:#aaa;font-size:13px}
+
+.communicationPreferences{grid-column:1/-1;border:1px solid #ffffff24;border-radius:12px;padding:14px;display:flex;gap:16px;flex-wrap:wrap}.communicationPreferences legend{padding:0 6px;font-weight:600}.communicationPreferences label{display:flex;align-items:center;gap:8px}.communicationPreferences input[type=checkbox]{width:auto;min-width:18px;accent-color:#db1738}.communicationPreferences small{flex-basis:100%;color:var(--muted,#a1a1ad)}.appointmentViews{margin-bottom:20px}.rewardNote{display:block;color:#aaa;margin-top:5px}.loyaltyRules{padding:16px;border:1px solid #ffffff24;border-radius:12px;margin:18px 0}.loyaltyRules summary{cursor:pointer;font-weight:600}.loyaltyRules form{padding-top:16px}

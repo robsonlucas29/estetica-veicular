@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {monthReceipts,monthServices,businessDate,receiptEntries,LOYALTY_REWARDS} from '../src/business-metrics.js';
+const now='2026-10-26T15:00:00Z';
+const payments=[{id:'p1',service_order_id:'same',amount:25,paid_at:'2026-10-26T10:00:00Z'},{id:'p2',service_order_id:'same',amount:35,paid_at:'2026-10-01T03:00:00Z'},{id:'p3',amount:99,paid_at:'2026-10-01T02:59:59Z'},{id:'p4',amount:0,paid_at:now}];
+assert.equal(monthReceipts(payments,now),60);
+assert.equal(receiptEntries(payments).length,4);
+assert.equal(businessDate('2026-10-01T02:59:59Z'),'2026-09-30');
+assert.equal(businessDate('2026-10-01'),'2026-10-01');
+assert.equal(monthServices([{status:'concluido',charged_amount:0,completed_at:now,service_id:'expensive'}],now),0);
+assert.equal(monthServices([{status:'concluido',charged_amount:100,completed_at:now},{status:'cancelado',charged_amount:100,completed_at:now}],now),100);
+assert.deepEqual(LOYALTY_REWARDS.map(r=>r.points),[1000,1350,1700,2050,2451]);
+console.log('PASS: shared receipts, partial payments, month boundary in Macapá, zero values, cancellation and reward thresholds');

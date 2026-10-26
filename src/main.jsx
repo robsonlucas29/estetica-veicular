@@ -15,6 +15,7 @@ import logoGraucar from './assets/grau-car-logo.jpeg';
 import './styles.css';
 import DevelopmentWorkspace,{developmentTabs,InstallApp,fetchAllRows} from './DevelopmentWorkspace.jsx';
 import {runtime} from './runtime-environment.js';
+import {businessDate,monthReceipts,monthServices,receiptEntries} from './business-metrics.js';
 
 const {isDevelopment,url,key,modernized}=runtime;
 const supabase=createClient(url,key);
@@ -55,13 +56,8 @@ const employeeGeneratedShare=(record,employeeId)=>{
 };
 
 // Usa a data local do atendimento, evitando deslocamentos causados por UTC.
-const localDateKey=value=>{
- if(!value)return '';
- if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
- const date=value instanceof Date?value:new Date(value);
- if(Number.isNaN(date.getTime()))return '';
- return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
-};
+const localDateKey=businessDate;
+
 const dt=v=>v?new Date(v).toLocaleString('pt-BR'):'-';
 
 const dateOnly=v=>v
@@ -2027,6 +2023,7 @@ function App(){
 
  const common={
   clients,
+  setClients,
   vehicles,
   services,
   vehicleCategories,
@@ -2219,14 +2216,14 @@ function App(){
    }
 
    {tab==='agendamentos'&&
-    <Appointments
+    <AppointmentTabs common={common} setAppointments={setAppointments}><Appointments
      {...common}
      setAppointments={setAppointments}
      setAppointmentFiles={setAppointmentFiles}
      setOrders={setOrders}
      setPayments={setPayments}
      setImages={setImages}
-    />
+    /></AppointmentTabs>
    }
 
    {tab==='equipe'&&canAdmin&&
@@ -2557,7 +2554,7 @@ function Sidebar({
 
  const all=[
   ['dashboard',ClipboardList,'Dashboard'],
-  ...(modernized?[["agenda-visual",CalendarDays,"Agenda visual"],["producao",ClipboardList,"Produção"],["estoque",Tag,"Estoque"],["financeiro",Wallet,"Financeiro"],["fidelidade",Users,"Fidelidade e VIP"],["assistente",MessageCircle,"Assistente IA"],["integracoes",ShieldCheck,"Integrações"]]:[]),
+  ...(modernized?[["producao",ClipboardList,"Produção"]]:[]),
   ['clientes',Users,'Clientes'],
   ['veiculos',Car,'Veículos'],
   ['servicos',Wrench,'Serviços'],
@@ -2567,6 +2564,7 @@ function Sidebar({
   ['caixa',Wallet,'Caixa'],
   ['relatorios',FileDown,'Relatórios'],
   ['usuarios',ShieldCheck,['administrador','gerente'].includes(role)?'Usuários':'Meu perfil'],
+  ...(modernized?[["fidelidade",Users,"Fidelidade e clientes VIP"],["assistente",MessageCircle,"Assistente de IA"],["integracoes",ShieldCheck,"Integrações"],["financeiro",Wallet,"Financeiro"],["estoque",Tag,"Estoque"]]:[]),
   ['auditoria',ShieldCheck,'Auditoria']
  ];
 
@@ -2861,11 +2859,21 @@ function drawPdfBars(doc,items,x,y,w,h){
    DASHBOARD
 ========================================================= */
 
+function AppointmentTabs({common,setAppointments,children}){
+ const [view,setView]=useState('list');
+ return <section><div className="segmentedControl appointmentViews" role="tablist" aria-label="Visualização dos agendamentos">
+ <button id="appointments-list-tab" role="tab" aria-selected={view==='list'} aria-controls="appointments-list-panel" className={view==='list'?'active':''} onClick={()=>setView('list')}>Agendamentos</button>
+ <button id="appointments-visual-tab" role="tab" aria-selected={view==='visual'} aria-controls="appointments-visual-panel" className={view==='visual'?'active':''} onClick={()=>setView('visual')}>Agenda visual</button></div>
+ <div id="appointments-list-panel" role="tabpanel" aria-labelledby="appointments-list-tab" hidden={view!=='list'}>{children}</div>
+ {view==='visual'&&<div id="appointments-visual-panel" role="tabpanel" aria-labelledby="appointments-visual-tab"><DevelopmentWorkspace tab="agenda-visual" {...common} setAppointments={setAppointments}/></div>}</section>;
+}
+
 function Dashboard({
  clients,
  vehicles,
  services,
  orders,
+ payments,
  appointments,
  profile
 }){
@@ -2906,31 +2914,8 @@ function Dashboard({
   em_atendimento:countAppointmentGroups('em_atendimento')
  };
 
- const revenueNow=new Date();
- const currentMonthCompletedOrders=
-  completedOrders.filter(o=>{
-   const d=new Date(o.completed_at||o.created_at);
-   return (
-    d.getFullYear()===revenueNow.getFullYear()&&
-    d.getMonth()===revenueNow.getMonth()
-   );
-  });
-
- const revenue=
-  currentMonthCompletedOrders.reduce(
-   (s,o)=>
-    s+
-    Number(
-     o.charged_amount||
-     finalPrice(
-      services.find(
-       x=>x.id===o.service_id
-      )
-     )||
-     0
-    ),
-   0
-  );
+ const revenue=monthReceipts(payments);
+ const performedRevenue=monthServices(orders);
 
  const operationalFlowTotal=completedOrders.length+openAppointmentCount;
  const completionRate=
@@ -3000,10 +2985,10 @@ function Dashboard({
 
    {profile?.role!=='administrativo'&&
     <Card
-     t="Faturamento registrado"
+     t="Recebido no mês"
      v={money(revenue)}
      I={Wallet}
-     hint="Mês atual"
+     hint={`Pagamentos registrados · Serviços realizados: ${money(performedRevenue)}`}
     />
    }
 
@@ -3149,7 +3134,7 @@ function Clients({
   name:'',
   phone:'',
   email:'',
-  document:''
+  document:'',email_opt_in:true,whatsapp_opt_in:true
  };
 
  const [f,setF]=useState(empty);
@@ -3203,7 +3188,9 @@ function Clients({
    name,
    phone,
    email,
-   document
+   document,
+   email_opt_in:f.email_opt_in!==false,
+   whatsapp_opt_in:f.whatsapp_opt_in!==false
   };
 
   let saved;
@@ -3310,6 +3297,11 @@ function Clients({
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
      /></IconField>
+     <fieldset className="communicationPreferences"><legend>Preferências de comunicação</legend>
+      <label><input type="checkbox" checked={f.email_opt_in!==false} onChange={e=>setF({...f,email_opt_in:e.target.checked})}/> Autoriza receber e-mail</label>
+      <label><input type="checkbox" checked={f.whatsapp_opt_in!==false} onChange={e=>setF({...f,whatsapp_opt_in:e.target.checked})}/> Autoriza receber WhatsApp</label>
+      <small>Preferências iniciais ativadas. Desmarque quando o cliente não autorizar. WhatsApp depende da integração com a Meta.</small>
+     </fieldset>
     </div>
    }
 
@@ -3325,6 +3317,7 @@ function Clients({
      'Telefone',
      'E-mail',
      'Documento',
+     'Comunicação',
      'Ações'
     ]}
    >
@@ -3336,6 +3329,7 @@ function Clients({
       <td>{r.phone?maskPhoneBR(r.phone):'-'}</td>
       <td>{r.email||'-'}</td>
       <td>{r.document?maskCpfCnpj(r.document):'-'}</td>
+      <td><small>E-mail: {r.email_opt_in!==false?'Sim':'Não'}<br/>WhatsApp: {r.whatsapp_opt_in!==false?'Sim':'Não'}</small></td>
 
       <td>
        <Actions
@@ -3350,7 +3344,8 @@ function Clients({
              name:r.name||'',
              phone:maskPhoneBR(r.phone||''),
              email:r.email||'',
-             document:maskCpfCnpj(r.document||'')
+             document:maskCpfCnpj(r.document||''),
+             email_opt_in:r.email_opt_in!==false,whatsapp_opt_in:r.whatsapp_opt_in!==false
             });
            }
           :null
@@ -3417,6 +3412,11 @@ function Clients({
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
      /></IconField>
+     <fieldset className="communicationPreferences"><legend>Preferências de comunicação</legend>
+      <label><input type="checkbox" checked={f.email_opt_in!==false} onChange={e=>setF({...f,email_opt_in:e.target.checked})}/> Autoriza receber e-mail</label>
+      <label><input type="checkbox" checked={f.whatsapp_opt_in!==false} onChange={e=>setF({...f,whatsapp_opt_in:e.target.checked})}/> Autoriza receber WhatsApp</label>
+      <small>Preferências iniciais ativadas. Desmarque quando o cliente não autorizar. WhatsApp depende da integração com a Meta.</small>
+     </fieldset>
     </div>
 
     <div className="inline">
@@ -3535,7 +3535,7 @@ function Clients({
 
          <td>
           {money(
-           o.charged_amount||
+           o.charged_amount??
            finalPrice(sv)
           )}
          </td>
@@ -7174,71 +7174,7 @@ useState(today.split('-').reverse().join('/'));
  const [evolutionMode,setEvolutionMode]=useState('day');
 
 
- const completedOrders=
-  orders.filter(
-   o=>o.status==='concluido'
-  );
-
-
- const serviceGroups=
-  Object.values(
-   completedOrders.reduce((acc,o)=>{
-
-    const key=
-     o.atendimento_id||o.id;
-
-    if(!acc[key]){
-     acc[key]={
-      key,
-      rows:[]
-     };
-    }
-
-    acc[key].rows.push(o);
-
-    return acc;
-
-   },{})
-  );
-
-
- const allEntries=
-  serviceGroups
-   .map(g=>{
-
-    const ids=
-     new Set(
-      g.rows.map(o=>o.id)
-     );
-
-    const payment=
-     payments.find(
-      p=>ids.has(p.service_order_id)
-     );
-
-    const amount=
-     g.rows.reduce(
-      (sum,o)=>
-       sum+
-       Number(o.charged_amount || 0),
-      0
-     );
-
-    return {
-     key:g.key,
-     amount,
-     payment_method_id:
-      payment?.payment_method_id||null,
-     paid_at:
-      payment?.paid_at||
-      g.rows[0]?.completed_at||
-      g.rows[0]?.created_at,
-     order_id:g.rows[0]?.id
-    };
-
-   })
-   .filter(e=>e.paid_at);
-
+ const allEntries=receiptEntries(payments);
 
  const todayEntries=
   allEntries.filter(
@@ -7686,7 +7622,7 @@ useState(today.split('-').reverse().join('/'));
    </div>
   </Panel>
 
-  <Panel title="Resumo do caixa" action={<div className="reportBtns"><button className="secondary" onClick={cashPdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={cashExcel}><FileDown size={17}/>Excel</button></div>}>
+  <Panel title="Resumo do caixa — valores recebidos" action={<div className="reportBtns"><button className="secondary" onClick={cashPdf}><FileDown size={17}/>PDF</button><button className="primary" onClick={cashExcel}><FileDown size={17}/>Excel</button></div>}>
    <div className="cashSummary">
     <div><span>Hoje</span><strong>{money(todayTotal)}</strong></div>
     <div><span>Mês atual</span><strong>{money(monthTotal)}</strong></div>
@@ -7720,7 +7656,7 @@ useState(today.split('-').reverse().join('/'));
   <Panel title="Fechamento de caixa" action={<div className="inline"><div className="iconField"><CalendarDays size={17}/><input className="dateInput" type="text" inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} value={selectedDayText} onChange={e=>{const masked=maskDateBR(e.target.value);setSelectedDayText(masked);const iso=brDateToIso(masked);if(iso)setSelectedDay(iso);}}/></div>{canAdmin&&<button className="primary" onClick={close}><Wallet size={17}/>Fechar caixa do dia</button>}</div>}><p className="hint">O fechamento manual continua disponível. O servidor fecha os dias concluídos às 00:05, mesmo com o navegador fechado.</p></Panel>
 
   <Panel title="Fechamentos anteriores">
-   <p className="hint">Lançamentos retroativos entram na data do serviço. Se o caixa já estava fechado, a diferença aparece abaixo e o fechamento original permanece preservado para conferência.</p>
+   <p className="hint">Recebimentos entram pela data do pagamento. Fechamentos antigos são preservados; eventuais diferenças de critérios anteriores ou lançamentos posteriores aparecem para conferência.</p>
    <Table headers={['Data','Fechado em','Total fechado','Conferência','Ações']}>
     {cashClosings.map(c=>{
      const actual=allEntries.filter(e=>localDateKey(e.paid_at)===c.closing_date).reduce((sum,e)=>sum+Number(e.amount||0),0);
@@ -7730,7 +7666,7 @@ useState(today.split('-').reverse().join('/'));
       <td>{dt(c.closed_at)}</td>
       <td><b>{money(c.total_amount)}</b></td>
       <td>{Math.abs(difference)>=0.01
-       ?<span style={{color:'#ffb86b',fontWeight:700}}>Ajuste retroativo pendente: {money(difference)}<small style={{display:'block'}}>Total atualizado: {money(actual)}</small></span>
+       ?<span style={{color:'#ffb86b',fontWeight:700}}>Diferença para conferência: {money(difference)}<small style={{display:'block'}}>Total atualizado: {money(actual)}</small></span>
        :<span>Conferido</span>}</td>
       <td>{canSuperAdmin?<button className="danger" type="button" title="Excluir fechamento" onClick={()=>deleteClosing(c.id)}><Trash2 size={16}/></button>:<span className="hint">Somente administrador</span>}</td>
      </tr>;
@@ -7822,9 +7758,7 @@ function Reports({
 
     Valor:
      Number(
-      o.charged_amount||
-      finalPrice(s)||
-      0
+      o.charged_amount??0
      ),
 
     Status:
@@ -7842,7 +7776,7 @@ function Reports({
   const avg=rows.length?total/rows.length:0;
   drawPdfMetric(doc,14,45,55,'Serviços',rows.length);drawPdfMetric(doc,73,45,62,'Faturamento',money(total));drawPdfMetric(doc,139,45,55,'Clientes',uniqueClients);drawPdfMetric(doc,198,45,62,'Ticket médio',money(avg));
   const byService=Object.values(rows.reduce((a,r)=>{a[r.Servico]=a[r.Servico]||{label:r.Servico||'Sem serviço',value:0};a[r.Servico].value+=r.Valor;return a;},{})).sort((a,b)=>b.value-a.value).slice(0,7);
-  const byDay=Object.values(filtered.reduce((a,o)=>{const k=localDateKey(o.completed_at||o.created_at);const serv=services.find(x=>x.id===o.service_id);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value+=Number(o.charged_amount||finalPrice(serv)||0);return a;},{})).slice(-7);
+  const byDay=Object.values(filtered.reduce((a,o)=>{const k=localDateKey(o.completed_at||o.created_at);const serv=services.find(x=>x.id===o.service_id);a[k]=a[k]||{label:isoDateToBR(k).slice(0,5),value:0};a[k].value+=Number(o.charged_amount??0);return a;},{})).slice(-7);
   doc.setTextColor(40,40,46);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Faturamento por serviço',14,79);drawPdfBars(doc,byService,14,83,118,48);doc.text('Evolução recente',150,79);drawPdfBars(doc,byDay,150,83,118,48);
   autoTable(doc,{startY:142,margin:{left:14,right:14},head:[['Data','Cliente','Placa','Veículo','Serviço','Funcionário','Valor','Status']],body:rows.map(r=>[r.Data,r.Cliente,r.Placa,r.Veiculo,r.Servico,r.Funcionario,money(r.Valor),String(r.Status||'').replaceAll('_',' ')]),theme:'grid',styles:{fontSize:7.7,cellPadding:2.8,lineColor:[226,226,230],lineWidth:.15,textColor:[45,45,50]},headStyles:{fillColor:[215,25,32],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[248,248,250]},didDrawPage:()=>{const page=doc.internal.getNumberOfPages(),height=doc.internal.pageSize.getHeight();doc.setFontSize(8);doc.setTextColor(120,120,128);doc.text(`Garagem Grau Car 096 • Relatório gerencial • Página ${page}`,14,height-8);}});
   doc.save('relatorio-gerencial-grau-car.pdf');
