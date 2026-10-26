@@ -3134,7 +3134,7 @@ function Clients({
   name:'',
   phone:'',
   email:'',
-  document:'',email_opt_in:true,whatsapp_opt_in:true
+  document:'',email_opt_in:true,whatsapp_opt_in:true,loyalty_enabled:true
  };
 
  const [f,setF]=useState(empty);
@@ -3190,7 +3190,8 @@ function Clients({
    email,
    document,
    email_opt_in:f.email_opt_in!==false,
-   whatsapp_opt_in:f.whatsapp_opt_in!==false
+   whatsapp_opt_in:f.whatsapp_opt_in!==false,
+   loyalty_enabled:f.loyalty_enabled!==false
   };
 
   let saved;
@@ -3297,9 +3298,10 @@ function Clients({
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
      /></IconField>
-     <fieldset className="communicationPreferences"><legend>Preferências de comunicação</legend>
+     <fieldset className="communicationPreferences"><legend>Preferências do cliente</legend>
       <label><input type="checkbox" checked={f.email_opt_in!==false} onChange={e=>setF({...f,email_opt_in:e.target.checked})}/> Autoriza receber e-mail</label>
       <label><input type="checkbox" checked={f.whatsapp_opt_in!==false} onChange={e=>setF({...f,whatsapp_opt_in:e.target.checked})}/> Autoriza receber WhatsApp</label>
+      <label><input type="checkbox" checked={f.loyalty_enabled!==false} onChange={e=>setF({...f,loyalty_enabled:e.target.checked})}/> Participa do programa fidelidade</label>
       <small>Preferências iniciais ativadas. Desmarque quando o cliente não autorizar. WhatsApp depende da integração com a Meta.</small>
      </fieldset>
     </div>
@@ -3317,7 +3319,7 @@ function Clients({
      'Telefone',
      'E-mail',
      'Documento',
-     'Comunicação',
+     'Preferências',
      'Ações'
     ]}
    >
@@ -3329,7 +3331,7 @@ function Clients({
       <td>{r.phone?maskPhoneBR(r.phone):'-'}</td>
       <td>{r.email||'-'}</td>
       <td>{r.document?maskCpfCnpj(r.document):'-'}</td>
-      <td><small>E-mail: {r.email_opt_in!==false?'Sim':'Não'}<br/>WhatsApp: {r.whatsapp_opt_in!==false?'Sim':'Não'}</small></td>
+      <td><small>E-mail: {r.email_opt_in!==false?'Sim':'Não'}<br/>WhatsApp: {r.whatsapp_opt_in!==false?'Sim':'Não'}<br/>Fidelidade: {r.loyalty_enabled!==false?'Sim':'Não'}</small></td>
 
       <td>
        <Actions
@@ -3345,7 +3347,7 @@ function Clients({
              phone:maskPhoneBR(r.phone||''),
              email:r.email||'',
              document:maskCpfCnpj(r.document||''),
-             email_opt_in:r.email_opt_in!==false,whatsapp_opt_in:r.whatsapp_opt_in!==false
+             email_opt_in:r.email_opt_in!==false,whatsapp_opt_in:r.whatsapp_opt_in!==false,loyalty_enabled:r.loyalty_enabled!==false
             });
            }
           :null
@@ -3412,9 +3414,10 @@ function Clients({
       value={f.document}
       onChange={e=>setF({...f,document:maskCpfCnpj(e.target.value)})}
      /></IconField>
-     <fieldset className="communicationPreferences"><legend>Preferências de comunicação</legend>
+     <fieldset className="communicationPreferences"><legend>Preferências do cliente</legend>
       <label><input type="checkbox" checked={f.email_opt_in!==false} onChange={e=>setF({...f,email_opt_in:e.target.checked})}/> Autoriza receber e-mail</label>
       <label><input type="checkbox" checked={f.whatsapp_opt_in!==false} onChange={e=>setF({...f,whatsapp_opt_in:e.target.checked})}/> Autoriza receber WhatsApp</label>
+      <label><input type="checkbox" checked={f.loyalty_enabled!==false} onChange={e=>setF({...f,loyalty_enabled:e.target.checked})}/> Participa do programa fidelidade</label>
       <small>Preferências iniciais ativadas. Desmarque quando o cliente não autorizar. WhatsApp depende da integração com a Meta.</small>
      </fieldset>
     </div>
@@ -5189,7 +5192,7 @@ function Appointments({
    ?services.filter(
      s=>
       s.category_id===
-      selectedVehicle.category_id
+      selectedVehicle.category_id&&(!s.loyalty_reward_code||f.loyalty_redemption_id)
     )
    :[];
 
@@ -6061,7 +6064,8 @@ function Appointments({
    discount_percent:
     a.discount_percent??'',
    charged_amount:
-    total||'',
+    String(total),
+   loyalty_redemption_id:a.loyalty_redemption_id||null,
    payment_method_id:
     a.payment_method_id||'',
    files:null,
@@ -6075,7 +6079,14 @@ function Appointments({
 
 
  function appointmentFields(){
-
+  if(f.loyalty_redemption_id)return <div className="formGrid">
+   <div className="fieldHint">Resgate de fidelidade · {clients.find(c=>c.id===f.client_id)?.name} · {vehicles.find(v=>v.id===f.vehicle_id)?.plate}<br/>{f.service_ids.map(id=>services.find(s=>s.id===id)?.name).join(', ')} · Valor cobrado: {money(f.charged_amount)}<br/>Benefício e valores já reservados. Cancelar antes da conclusão devolve os pontos.</div>
+   <label>Lavador(es) responsável(is)<select multiple required value={f.employee_ids} onChange={e=>setF({...f,employee_ids:Array.from(e.target.selectedOptions,o=>o.value)})}>{employees.filter(e=>e.active!==false).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+   <label>Data (DD/MM/AAAA)<input required value={f.scheduled_date} placeholder="DD/MM/AAAA" maxLength={10} onChange={e=>setF({...f,scheduled_date:maskDateBR(e.target.value)})}/></label>
+   <label>Hora (24h)<input required value={f.scheduled_time} placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxLength={5} onChange={e=>setF({...f,scheduled_time:e.target.value})}/></label>
+   <label>Status<select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="em_atendimento">Em atendimento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado — devolver pontos</option></select></label>
+   <label>Observação<textarea value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></label>
+  </div>;
   return <div className="formGrid">
 
    <AppointmentSearchSelect title="Clientes" placeholder="👤 Cliente *" value={f.client_id}

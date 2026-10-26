@@ -28,12 +28,12 @@ begin
  select id into admin_id from public.profiles where role='administrador' limit 1;
  if admin_id is null then raise exception 'FAIL missing DEV test role';end if;
  perform set_config('request.jwt.claim.sub',admin_id::text,true);
- perform public.redeem_loyalty_reward(c,'simple_no_wax','Synthetic validation');
+ perform private.redeem_loyalty_reward(c,'simple_no_wax','Synthetic validation');
  select points_balance into net from public.loyalty_accounts where id=a;if net<>2070 then raise exception 'FAIL redemption: %',net;end if;
  if (select visits_in_window from public.loyalty_overview where client_id=c)<>1 then raise exception 'FAIL redemption affected VIP';end if;
  delete from public.service_orders where id=o2;
  if not exists(select 1 from public.loyalty_accounts where id=a and points_balance=0 and points_debt=930) then raise exception 'FAIL reversal after redemption';end if;
- begin perform public.redeem_loyalty_reward(c,'simple_no_wax','');raise exception 'FAIL overspend accepted'; exception when others then if sqlerrm='FAIL overspend accepted' then raise;end if;end;
+ begin perform private.redeem_loyalty_reward(c,'simple_no_wax','');raise exception 'FAIL overspend accepted'; exception when others then if sqlerrm='FAIL overspend accepted' then raise;end if;end;
  insert into public.service_orders(vehicle_id,service_id,status,charged_amount,completed_at) values(v,s,'concluido',1000,now());
  if not exists(select 1 from public.loyalty_accounts where id=a and points_balance=70 and points_debt=0) then raise exception 'FAIL debt offset';end if;
  update public.loyalty_settings set points_per_real=2 where id=1;
