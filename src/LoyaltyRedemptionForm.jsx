@@ -41,6 +41,7 @@ export default function LoyaltyRedemptionForm({supabase,accounts=[],clients=[],v
  {!employees.some(e=>e.active!==false)&&<small>Cadastre um lavador ativo em Equipe.</small>}
  </AppointmentMultiPicker></div>
  <div className="appointment-datetime redemptionDateTime">
+ <span className="redemptionDateTimeLabel">Data e hora do agendamento</span>
  <input aria-label="Data (DD/MM/AAAA)" type="text" inputMode="numeric" placeholder="📅 DD/MM/AAAA *" maxLength={10} required value={f.date} onChange={e=>setF({...f,date:maskDate(e.target.value)})}/>
  <input aria-label="Hora (24h)" type="text" inputMode="numeric" placeholder="◷ HH:MM *" maxLength={5} pattern="([01][0-9]|2[0-3]):[0-5][0-9]" required value={f.time} onChange={e=>{const n=e.target.value.replace(/\D/g,'').slice(0,4);setF({...f,time:n.length>2?`${n.slice(0,2)}:${n.slice(2)}`:n});}}/>
  </div>
