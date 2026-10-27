@@ -5,7 +5,7 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 const temp=new URL('../.verify-development.mjs',import.meta.url);
 try{
- const result=await build({entryPoints:['src/DevelopmentWorkspace.jsx'],bundle:true,platform:'node',format:'esm',external:['react'],loader:{'.css':'empty'},define:{'import.meta.env':JSON.stringify({MODE:'development'})},write:false});
+ const result=await build({entryPoints:['src/DevelopmentWorkspace.jsx'],bundle:true,platform:'node',format:'esm',external:['react','react-dom','lucide-react'],loader:{'.css':'empty'},define:{'import.meta.env':JSON.stringify({MODE:'development'})},write:false});
  await writeFile(temp,result.outputFiles[0].text);
  const {fetchAllRows,default:Workspace,developmentTabs}=await import(temp.href);
  const records=Array.from({length:1205},(_,id)=>({id,created_at:id}));let pages=0;
