@@ -1325,3 +1325,6 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .redemptionWasherField{display:flex;flex-direction:column;gap:6px;min-width:0}.redemptionDateTime{align-self:end}.redemptionDateTime input{width:100%;min-width:0}
 
 .redemptionFields{align-items:end}.redemptionFields>label{display:flex;flex-direction:column;gap:6px;margin:0}.redemptionFields>label>select,.redemptionFields>label>input,.redemptionDateTime>input{height:48px;margin:0}.redemptionWasherField{align-self:end;font-size:13px}.redemptionWasherField .multi-services{margin:0}.redemptionDateTime{gap:6px 10px}.redemptionDateTimeLabel{grid-column:1/-1;font-size:13px}
+
+/* Override workspace label margins so paired redemption controls share a baseline. */
+.devBox .redemptionFields>label{margin:0;gap:6px;align-self:end}.devBox .redemptionFields>label>select,.devBox .redemptionFields>label>input,.devBox .redemptionDateTime>input{height:48px;min-height:48px;margin:0}.devBox .redemptionWasherField,.devBox .redemptionDateTime{align-self:end;margin:0}.devBox .redemptionDateTimeLabel,.devBox .redemptionWasherField>span{line-height:normal}
