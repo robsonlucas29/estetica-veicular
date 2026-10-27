@@ -11,7 +11,7 @@ assert.deepEqual(sortedLoyaltyAccounts(accounts,clients).map(a=>a.points_balance
 assert.deepEqual(redeemableAccounts(accounts,clients).map(a=>a.client_id),['eligible']);
 const temp=new URL('../.verify-redemption.mjs',import.meta.url);
 try{
- const result=await build({entryPoints:['src/LoyaltyRedemptionForm.jsx'],bundle:true,platform:'node',format:'esm',external:['react'],define:{'import.meta.env':JSON.stringify({MODE:'development'})},write:false});await writeFile(temp,result.outputFiles[0].text);
+ const result=await build({entryPoints:['src/LoyaltyRedemptionForm.jsx'],bundle:true,platform:'node',format:'esm',external:['react','react-dom','lucide-react'],define:{'import.meta.env':JSON.stringify({MODE:'development'})},write:false});await writeFile(temp,result.outputFiles[0].text);
  const {default:Form}=await import(temp.href);const html=renderToStaticMarkup(React.createElement(Form,{accounts,clients,supabase:{}}));
  assert(html.includes('value="eligible"'));assert(!html.includes('value="robson"'));assert(!html.includes('value="excluded"'));
  assert(html.includes('Hora (24h)'));assert(html.includes('Status do agendamento'));assert(html.includes('Lavador(es)'));assert(html.includes('Veículo'));assert(html.includes('disabled=""'));
