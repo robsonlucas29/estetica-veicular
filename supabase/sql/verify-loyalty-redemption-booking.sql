@@ -1,7 +1,7 @@
 -- DEV ONLY; synthetic records; no messages, all changes rolled back.
 begin;
 do $$
-declare c uuid:=gen_random_uuid();v uuid:=gen_random_uuid();e uuid:=gen_random_uuid();s uuid:=gen_random_uuid();m uuid:=gen_random_uuid();g uuid:=gen_random_uuid();g2 uuid:=gen_random_uuid();g3 uuid:=gen_random_uuid();g4 uuid:=gen_random_uuid();a uuid;actor uuid;result jsonb;r public.loyalty_redemptions%rowtype;payload jsonb;when_at timestamptz:=date_trunc('day',now()+interval '25 days')+interval '10 hours';balance integer;
+declare c uuid:=gen_random_uuid();v uuid:=gen_random_uuid();e uuid:=gen_random_uuid();s uuid:=gen_random_uuid();m uuid:=gen_random_uuid();g uuid:=gen_random_uuid();g2 uuid:=gen_random_uuid();g3 uuid:=gen_random_uuid();g4 uuid:=gen_random_uuid();a uuid;actor uuid;result jsonb;r public.loyalty_redemptions%rowtype;payload jsonb;when_at timestamptz:=date_trunc('day',now()-interval '2 days')+interval '10 hours';balance integer;
 begin
  insert into public.clients(id,name,email) values(c,'REDEMPTION_SYNTHETIC_ONLY','synthetic@example.invalid');
  insert into public.vehicles(id,client_id,plate) values(v,c,'REWARD-'||left(v::text,8));

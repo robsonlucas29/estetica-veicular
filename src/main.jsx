@@ -1,3 +1,4 @@
+import {completionDateError} from './completion-date.js';
 import AppointmentMultiPicker from './AppointmentMultiPicker.jsx';
 import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -5633,6 +5634,11 @@ function Appointments({
 
   const when=
    localDate.toISOString();
+
+  if(f.status==='concluido'){
+   const dateError=completionDateError(when,f.scheduled_at);
+   if(dateError)return alert(dateError);
+  }
 
 
   const oldIds=

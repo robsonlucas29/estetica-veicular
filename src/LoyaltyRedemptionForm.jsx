@@ -1,3 +1,4 @@
+import {completionDateError} from './completion-date.js';
 import React,{useState} from 'react';
 import AppointmentMultiPicker from './AppointmentMultiPicker.jsx';
 import {LOYALTY_REWARDS} from './business-metrics.js';
@@ -18,6 +19,7 @@ export default function LoyaltyRedemptionForm({supabase,accounts=[],clients=[],v
  function percent(value){const discount=Math.min(100,Math.max(0,Number(value)||0));setF({...f,discount:value,charged:service?(Number(service.price)*(1-discount/100)).toFixed(2):''});}
  function charge(value){const price=Number(service?.price||0);setF({...f,charged:value,discount:price?Number(((1-Number(value)/price)*100).toFixed(4)):''});}
  async function save(e){e.preventDefault();setError('');setMessage('');if(!canSubmit)return setError('Selecione um cliente com saldo suficiente e preencha os campos obrigatórios.');
+ if(f.status==='concluido'){const dateError=completionDateError(`${dateISO(f.date)}T${f.time}:00-03:00`);if(dateError)return setError(dateError);}
  if(!window.confirm(`Reservar ${reward.points.toLocaleString('pt-BR')} pontos e ${f.status==='concluido'?'concluir':'agendar'} este benefício?`))return;
  setBusy(true);
  try{

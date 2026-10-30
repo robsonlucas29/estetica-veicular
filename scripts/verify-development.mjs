@@ -12,5 +12,5 @@ try{
  const db={from(){return{select(){return this},order(){return this},async range(start,end){pages++;return{data:records.slice(start,end+1),error:null}}}}};
  const read=await fetchAllRows(db,'fixture');assert.equal(read.data.length,1205);assert.equal(pages,3);assert.equal(new Set(read.data.map(x=>x.id)).size,1205);
  console.log('PASS: paginação com 1.205 registros, três páginas, sem perdas ou duplicatas');
- for(const tab of developmentTabs){const html=renderToStaticMarkup(React.createElement(Workspace,{tab,supabase:db,profile:{id:'test'},clients:[],vehicles:[],employees:[],services:[],payments:[],canWrite:true}));assert.ok(html.length>100);console.log('PASS: renderização inicial '+tab);}
+ for(const tab of developmentTabs){const html=renderToStaticMarkup(React.createElement(Workspace,{tab,supabase:db,profile:{id:'test',role:'administrador'},clients:[],vehicles:[],employees:[],services:[],payments:[],canWrite:true}));assert.ok(html.length>100);console.log('PASS: renderização inicial '+tab);}
 }finally{await unlink(temp).catch(()=>{})}

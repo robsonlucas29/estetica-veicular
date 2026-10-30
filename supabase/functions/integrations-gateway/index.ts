@@ -1,3 +1,4 @@
+import {generateReport,localDay,topics} from '../_shared/assistant-reports.ts';
 import {createClient} from 'npm:@supabase/supabase-js@2.57.0';
 
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'};
@@ -18,15 +19,18 @@ Deno.serve(async(req)=>{
  if(!['administrador','gerente'].includes(profile?.role))return reply({error:'Acesso restrito à gestão'},403);
  let body={};try{body=await req.json();}catch{return reply({error:'JSON inválido'},400);}
  if(body.action==='status')return reply({providers:{meta:{configured:Boolean(env('META_WHATSAPP_TOKEN')&&env('META_PHONE_NUMBER_ID')&&env('META_TEMPLATE_NAME'))},resend:{configured:Boolean(env('RESEND_API_KEY')&&env('RESEND_FROM_EMAIL'))},openai:{configured:Boolean(env('OPENAI_API_KEY'))}},messaging_live_enabled:true,email_live_enabled:true,whatsapp_live_enabled:false,environment:'production',secrets_exposed:false});
+ if(body.action==='report'){try{return reply({report:await generateReport(db,body.plan)});}catch(e){return reply({error:e.message||'Relatório indisponível'},400);}}
  if(body.action!=='ask')return reply({error:'Ação inválida'},400);
  const question=String(body.question||'').trim();
  if(question.length<4||question.length>1200)return reply({error:'Pergunta deve conter entre 4 e 1200 caracteres'},400);
  if(!env('OPENAI_API_KEY'))return reply({error:'OpenAI ainda não configurada. Cadastre OPENAI_API_KEY nos segredos da função.'},503);
- const system='Você é assistente da gestão de uma estética veicular no Brasil. Responda em português, de forma objetiva. Não alegue acesso a clientes, veículos, pagamentos, agenda, sistemas ou ferramentas; nenhum dado do banco é enviado a você. Não execute ações. Para decisões financeiras, jurídicas ou técnicas, indique limitações e a necessidade de verificação.';
+ const today=localDay(new Date());
+ const system=`Você é o assistente de gestão da Garagem Grau Car 096. Hoje é ${today}, fuso America/Belem. Interprete o pedido em português. Você pode gerar relatórios consultando registros reais via servidor: servicos, equipe, clientes, financeiro, agendamentos, fidelidade, estoque. Para perguntas sobre dados do negócio e pedidos de arquivos, use action report e o topic adequado. Não diga que não consegue emitir documentos: a interface oferece PDF e Excel após consulta. Datas relativas são calculadas a partir de hoje. Sem período use do primeiro dia do mês atual até hoje. Estoque e fidelidade são posições atuais. Para perguntas sobre um cliente, placa ou lavador, preencha search com o nome exato/termo fornecido, sem palavras adicionais. Financeiro é caixa global e não aceita busca por nome: para cliente use clientes ou servicos. Para status só use o valor permitido ou vazio. Para dúvidas ambíguas peça esclarecimento em answer e action clarify. Não invente dados, valores ou nomes; você ainda não recebeu dados do banco. Se pedir edição, exclusão, cadastro, mudança de permissões, envio ou agendamento de mensagens, explique com precisão que deve usar a área correspondente do sistema; nunca alegue executar operações que não estão disponíveis. Para orientação/redação sem consulta, use action answer. Em action report, answer deve ser vazio; o servidor monta a resposta com resultados reais. Retorne apenas o JSON do esquema.`;
+ const schema={type:'object',additionalProperties:false,properties:{action:{type:'string',enum:['report','answer','clarify']},topic:{type:'string',enum:topics},from:{type:'string'},to:{type:'string'},search:{type:'string'},status:{type:'string',enum:['','agendado','confirmado','em_atendimento','concluido','cancelado','pendente','pago']},answer:{type:'string'}},required:['action','topic','from','to','search','status','answer']};
  try{
   const ctrl=new AbortController();const timeout=setTimeout(()=>ctrl.abort(),20000);
   let response;
-  try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{'Authorization':'Bearer '+env('OPENAI_API_KEY'),'Content-Type':'application/json'},body:JSON.stringify({model:env('OPENAI_MODEL')||'gpt-4.1-mini',instructions:system,input:question,max_output_tokens:450,store:false})});}
+  try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{'Authorization':'Bearer '+env('OPENAI_API_KEY'),'Content-Type':'application/json'},body:JSON.stringify({model:env('OPENAI_MODEL')||'gpt-4.1-mini',instructions:system,input:question,max_output_tokens:1100,store:false,text:{format:{type:"json_schema",name:"management_request",strict:true,schema}}})});}
   finally{clearTimeout(timeout);}
   if(!response.ok){
    let providerError={};try{providerError=await response.json();}catch{}
@@ -36,7 +40,14 @@ Deno.serve(async(req)=>{
    return reply({error:'Provedor de IA indisponível',provider_status:response.status},502);
   }
   const result=await response.json();
-  const answer=(result.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('\n').trim();
-  return reply({answer:answer||'Não foi possível obter uma resposta.',model:result.model||null,disclaimer:'Respostas geradas por IA podem conter erros. Nenhum dado privado foi consultado.'});
+  if(result.status==='incomplete')return reply({error:'A IA não concluiu a interpretação. Reformule o pedido ou use Gerar relatório.'},502);
+  const text=(result.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('\n').trim();
+  let plan;try{plan=JSON.parse(text);}catch{return reply({error:'Não foi possível interpretar o pedido. Use os filtros de relatório ou reformule.'},502);}
+  if(plan.action==='report'){
+   try{const report=await generateReport(db,plan);return reply({report,answer:`${report.title}: ${report.row_count} linha(s).\n${report.metrics.map(x=>`${x.label}: ${Number(x.value).toLocaleString('pt-BR',{maximumFractionDigits:2})}`).join('\n')}\n\n${report.note}\nUse PDF ou Excel para baixar o documento.`,model:result.model});}
+   catch(e){return reply({error:e.message||'Falha ao consultar relatório'},400);}
+  }
+  if(!['answer','clarify'].includes(plan.action))return reply({error:'Pedido não reconhecido.'},400);
+  return reply({answer:String(plan.answer||'Especifique o relatório e o período desejado.').slice(0,8000),model:result.model,disclaimer:'Orientação gerada por IA; confira antes de usar.'});
  }catch{return reply({error:'Tempo limite ou falha de conexão com a IA'},504);}
 });
