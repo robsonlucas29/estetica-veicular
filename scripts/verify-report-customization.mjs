@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';import {readFile,writeFile,unlink} from 'node:fs/promises';
-import {presentReport,reportCharts} from '../src/report-presentation.js';
+import {presentReport,reportCharts,reportHighlights} from '../src/report-presentation.js';
 const base={topic:'servicos',title:'Serviços realizados',from:'2026-10-01',to:'2026-10-31',columns:['Data','Cliente','Placa','Serviço','Responsáveis','Situação','Valor (R$)'],rows:[['2026-10-21','Cliente A','SYN0001','Lavagem','FUNCIONARIO_OCULTO','concluido',100]],metrics:[{label:'Linhas do relatório',value:1},{label:'Serviços realizados (R$)',value:100}],row_count:1};
 const hidden=presentReport(base,['Data','Placa','Serviço']);assert.deepEqual(hidden.columns,['Data','Placa','Serviço']);assert(!JSON.stringify(hidden.rows).includes('FUNCIONARIO_OCULTO'));assert(!hidden.metrics.some(m=>m.label.includes('R$')));assert(reportCharts(hidden).every(c=>c.unit!=='R$'));assert.throws(()=>presentReport(base,[]));
 assert.equal(reportCharts(presentReport(base,null,{indicators:false,charts:false,table:false})).length,0);
+const graphical=presentReport({...base,rows:[...base.rows,['2026-10-22','Cliente A','SYN0002','Polimento','HIDDEN','concluido',200]]});
+const graphs=reportCharts(graphical);assert.deepEqual(graphs.map(c=>c.type),['bar','donut','line']);assert.equal(graphs.find(c=>c.type==='donut').points.reduce((n,p)=>n+p.value,0),300);assert.equal(graphs.find(c=>c.type==='line').points[0].label,'2026-10-01');assert.equal(graphs.find(c=>c.type==='line').points.at(-1).label,'2026-10-31');assert(reportHighlights(graphical).some(x=>x.includes('Valor médio')));assert(!reportHighlights(hidden).some(x=>x.includes('R$')));
 const temp=new URL('../.verify-custom-engine.mjs',import.meta.url);await writeFile(temp,await readFile('supabase/functions/_shared/assistant-reports.ts','utf8'));
 try{
  const {generateReport}=await import(temp.href),id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
