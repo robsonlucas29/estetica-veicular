@@ -12,13 +12,13 @@ export function validatePlan(p,now=new Date()){
  if(!valid(from)||!valid(to)||from>to||Date.parse(to)-Date.parse(from)>3660*86400000)throw Error('Informe um período válido de até 10 anos.');
  const status=String(p.status||'');if(!['','agendado','confirmado','em_atendimento','concluido','cancelado','pendente','pago'].includes(status))throw Error('Situação inválida.');
  const client_id=String(p.client_id||'');if(client_id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(client_id))throw Error('Selecione um cliente válido.');
- if(client_id&&['financeiro','estoque'].includes(p.topic))throw Error('Este relatório é geral e não pode ser incluído em um relatório de cliente. Desmarque este tipo.');
+ if(client_id&&p.topic==='estoque')throw Error('Este relatório é geral e não pode ser incluído em um relatório de cliente. Desmarque este tipo.');
  return {topic:p.topic,from,to,search:String(p.search||'').slice(0,160),status,client_id};
 }
 export async function readRows(db,table,fields){const rows=[];for(let offset=0;offset<=20000;offset+=500){const {data,error}=await db.from(table).select(fields).order('id').range(offset,offset+499);if(error)throw Error('Não foi possível consultar os dados do relatório. Tente novamente.');if(offset+(data?.length||0)>20000)throw Error('O conjunto excede 20 mil registros. Solicite um período menor ou use os relatórios da área correspondente.');rows.push(...(data||[]));if((data||[]).length<500)return rows;}throw Error('Limite de registros excedido.');}
 export async function generateReport(db,raw,now=new Date()){
  const p=validatePlan(raw,now),inRange=v=>{const d=localDay(v);return d&&d>=p.from&&d<=p.to;},match=v=>!p.search||norm(v).includes(norm(p.search));
- const get=(t,f)=>readRows(db,t,f);let columns=[],rows=[],metrics=[],note='',client_name='';
+ const get=(t,f)=>readRows(db,t,f);let columns=[],rows=[],metrics=[],note='',client_name='',title=names[p.topic];
  if(['servicos','equipe','clientes','agendamentos'].includes(p.topic)){
   const [clients,vehicles,services,employees,records]=await Promise.all([get('clients','id,name'),get('vehicles','id,client_id,plate,brand,model'),get('service_types','id,name'),get('employees','id,name'),p.topic==='agendamentos'?get('appointments','id,appointment_group_id,client_id,vehicle_id,service_id,employee_id,employee_ids,scheduled_at,status,charged_amount'):get('service_orders','id,atendimento_id,vehicle_id,service_id,employee_id,employee_ids,completed_at,created_at,status,charged_amount')]);
   const find=(list,id)=>list.find(x=>x.id===id);client_name=find(clients,p.client_id)?.name||'';const enriched=records.filter(o=>p.topic==='agendamentos'?inRange(o.scheduled_at)&&(!p.status||o.status===p.status):o.status==='concluido'&&inRange(o.completed_at||o.created_at)).map(o=>{const v=find(vehicles,o.vehicle_id),c=find(clients,o.client_id||v?.client_id),ids=[...new Set((o.employee_ids?.length?o.employee_ids:[o.employee_id]).filter(Boolean))],team=ids.map(id=>find(employees,id)?.name||'Funcionário');return {...o,client_id:c?.id,client:c?.name||'Cliente',plate:v?.plate||'—',service:find(services,o.service_id)?.name||'Serviço',ids,team};}).filter(o=>(!p.client_id||o.client_id===p.client_id)&&(p.topic==='equipe'||match([o.client,o.plate,o.service,...o.team].join(' '))));
@@ -30,14 +30,28 @@ export async function generateReport(db,raw,now=new Date()){
   metrics=[{label:'Linhas do relatório',value:rows.length}];
   if(p.topic!=='agendamentos')metrics.push({label:p.topic==='equipe'?'Total proporcional (R$)':'Serviços realizados (R$)',value:round(rows.reduce((n,r)=>n+amount(r[r.length-1]),0))});
  }else if(p.topic==='financeiro'){
-  if(p.search)throw Error('O relatório financeiro não aceita filtro por nome. Para valores de um cliente, use Serviços por cliente.');
-  const [payments,expenses]=await Promise.all([get('payments','id,amount,paid_at'),get('finance_expenses','id,description,amount,incurred_on,due_on,paid_on,status')]);
+  if(p.search)throw Error('Para recebimentos de um cliente, selecione o cliente no campo Cliente e deixe a busca adicional vazia.');
+  let payments,expenses=[];
+  if(p.client_id){
+   const [paidRows,orders,vehicles,clients]=await Promise.all([get('payments','id,service_order_id,amount,paid_at'),get('service_orders','id,atendimento_id,vehicle_id'),get('vehicles','id,client_id'),get('clients','id,name')]);
+   const vehicleClient=new Map(vehicles.map(v=>[v.id,v.client_id])),orderById=new Map(orders.map(o=>[o.id,o])),groupClients=new Map();
+   for(const order of orders){const group=order.atendimento_id||order.id;const ids=groupClients.get(group)||new Set();ids.add(vehicleClient.get(order.vehicle_id));groupClients.set(group,ids);}
+   payments=paidRows.filter(payment=>{if(!inRange(payment.paid_at))return false;const order=orderById.get(payment.service_order_id);if(!order||vehicleClient.get(order.vehicle_id)!==p.client_id)return false;
+    if((groupClients.get(order.atendimento_id||order.id)?.size||0)>1)throw Error('Há um pagamento de atendimento com mais de um cliente. Confira o vínculo no Caixa antes de atribuí-lo a um cliente.');return true;});
+   client_name=clients.find(c=>c.id===p.client_id)?.name||'';title='Recebimentos do cliente';
+  }else{
+   [payments,expenses]=await Promise.all([get('payments','id,service_order_id,amount,paid_at'),get('finance_expenses','id,description,amount,incurred_on,due_on,paid_on,status')]);
+  }
   const receipts=payments.filter(x=>inRange(x.paid_at)),paid=expenses.filter(x=>x.status==='pago'&&inRange(x.paid_on)),pending=expenses.filter(x=>x.status==='pendente'&&inRange(x.incurred_on));
-  columns=['Data de referência','Tipo','Descrição','Situação','Valor (R$)'];rows=[...receipts.map(x=>[localDay(x.paid_at),'Recebimento','Pagamento de serviço','recebido',amount(x.amount)]),...paid.map(x=>[x.paid_on,'Despesa paga',x.description,'pago',amount(x.amount)]),...pending.map(x=>[x.incurred_on,'Despesa pendente',x.description,'pendente',amount(x.amount)])].filter(r=>!p.status||r[3]===p.status).sort((a,b)=>a[0].localeCompare(b[0]));const total=a=>round(a.reduce((n,x)=>n+amount(x.amount),0));metrics=[{label:'Recebido (R$)',value:total(receipts)},{label:'Despesas pagas (R$)',value:total(paid)},{label:'Saldo de caixa no período (R$)',value:round(total(receipts)-total(paid))},{label:'Despesas lançadas pendentes (R$)',value:total(pending)}];note='Recebimentos pela data paid_at; despesas pagas pela data paid_on; pendentes pela data de lançamento. Indicadores consideram o período completo, mesmo com filtro de situação na tabela. Não soma valores previstos aos recebimentos.';
+  columns=['Data de referência','Tipo','Descrição','Situação','Valor (R$)'];rows=[...receipts.map(x=>[localDay(x.paid_at),'Recebimento','Pagamento de serviço','recebido',amount(x.amount)]),...paid.map(x=>[x.paid_on,'Despesa paga',x.description,'pago',amount(x.amount)]),...pending.map(x=>[x.incurred_on,'Despesa pendente',x.description,'pendente',amount(x.amount)])].filter(r=>!p.status||r[3]===p.status).sort((a,b)=>a[0].localeCompare(b[0]));
+  const total=a=>round(a.reduce((n,x)=>n+amount(x.amount),0));
+  metrics=p.client_id?[{label:'Recebido do cliente (R$)',value:total(receipts)},{label:'Pagamentos vinculados',value:receipts.length}]:[{label:'Recebido (R$)',value:total(receipts)},{label:'Despesas pagas (R$)',value:total(paid)},{label:'Saldo de caixa no período (R$)',value:round(total(receipts)-total(paid))},{label:'Despesas lançadas pendentes (R$)',value:total(pending)}];
+  note=p.client_id?'Somente recebimentos vinculados aos serviços do cliente, pela data do pagamento. Despesas não possuem vínculo com cliente no cadastro atual e não foram incluídas; isso não significa que sejam zero. Não representa o lucro do cliente.':'Recebimentos pela data paid_at; despesas pagas pela data paid_on; pendentes pela data de lançamento. Indicadores consideram o período completo, mesmo com filtro de situação na tabela. Não soma valores previstos aos recebimentos.';
  }else if(p.topic==='estoque'){
   const stock=await get('inventory_items','id,name,current_quantity,min_quantity,unit,active');columns=['Material','Saldo atual','Unidade','Mínimo','Situação'];rows=stock.filter(x=>x.active&&match(x.name)).map(x=>[x.name,amount(x.current_quantity),x.unit,amount(x.min_quantity),amount(x.current_quantity)<=amount(x.min_quantity)?'Repor':'Normal']);metrics=[{label:'Materiais para reposição',value:rows.filter(r=>r[4]==='Repor').length}];note='Posição atual do estoque no momento da consulta; não é uma posição histórica do período selecionado.';
  }else{
   const [loyalty,clients]=await Promise.all([get('loyalty_overview','id,client_id,points_balance,points_debt,vip_tier'),get('clients','id,name,loyalty_enabled')]);client_name=clients.find(c=>c.id===p.client_id)?.name||'';columns=['Cliente','Saldo de pontos','Pontos a compensar','Categoria VIP'];rows=loyalty.map(x=>({...x,client:clients.find(c=>c.id===x.client_id)})).filter(x=>(!p.client_id||x.client_id===p.client_id)&&x.client?.loyalty_enabled!==false&&match(x.client?.name)).sort((a,b)=>amount(b.points_balance)-amount(a.points_balance)).map(x=>[x.client?.name||'Cliente',amount(x.points_balance),amount(x.points_debt),x.vip_tier]);metrics=[{label:'Participantes encontrados',value:rows.length}];note='Saldo atual de participantes do programa. O período não filtra saldos acumulados.';
  }
- return {title:names[p.topic],...p,client_name,columns,rows,metrics,note,generated_at:now.toISOString(),row_count:rows.length};
+ if(p.client_id&&!client_name)client_name='Cliente não encontrado ou sem acesso';
+ return {title,...p,client_name,columns,rows,metrics,note,generated_at:now.toISOString(),row_count:rows.length};
 }
