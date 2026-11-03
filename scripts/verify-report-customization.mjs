@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';import {readFile,writeFile,unlink} from 'node:fs/promises';
+import {presentReport,reportCharts} from '../src/report-presentation.js';
+const base={topic:'servicos',title:'Serviços realizados',from:'2026-10-01',to:'2026-10-31',columns:['Data','Cliente','Placa','Serviço','Responsáveis','Situação','Valor (R$)'],rows:[['2026-10-21','Cliente A','SYN0001','Lavagem','FUNCIONARIO_OCULTO','concluido',100]],metrics:[{label:'Linhas do relatório',value:1},{label:'Serviços realizados (R$)',value:100}],row_count:1};
+const hidden=presentReport(base,['Data','Placa','Serviço']);assert.deepEqual(hidden.columns,['Data','Placa','Serviço']);assert(!JSON.stringify(hidden.rows).includes('FUNCIONARIO_OCULTO'));assert(!hidden.metrics.some(m=>m.label.includes('R$')));assert(reportCharts(hidden).every(c=>c.unit!=='R$'));assert.throws(()=>presentReport(base,[]));
+assert.equal(reportCharts(presentReport(base,null,{indicators:false,charts:false,table:false})).length,0);
+const temp=new URL('../.verify-custom-engine.mjs',import.meta.url);await writeFile(temp,await readFile('supabase/functions/_shared/assistant-reports.ts','utf8'));
+try{
+ const {generateReport}=await import(temp.href),id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
+ const data={clients:[{id,name:'Client A'},{id:other,name:'Client B'}],vehicles:[{id:'v1',client_id:id},{id:'v2',client_id:other}],service_types:[{id:'s',name:'Lavagem'}],employees:[{id:'e',name:'Lavador'}],service_orders:[{id:'o1',vehicle_id:'v1',service_id:'s',employee_ids:['e'],charged_amount:100,status:'concluido',completed_at:'2026-10-21T12:00:00Z'},{id:'o2',vehicle_id:'v2',service_id:'s',employee_ids:['e'],charged_amount:999,status:'concluido',completed_at:'2026-10-21T12:00:00Z'}],loyalty_overview:[],appointments:[]};
+ const db={from(t){if(!data[t])throw Error('Unexpected table '+t);return {select(){return this},order(){return this},async range(a,b){return {data:data[t].slice(a,b+1)}}}}};
+ for(const topic of ['servicos','clientes','equipe']){const report=await generateReport(db,{topic,from:base.from,to:base.to,client_id:id});assert.equal(report.rows.length,1);assert.equal(report.metrics[1].value,100);assert(!JSON.stringify(report.rows).includes('Client B'));assert.equal(report.client_name,'Client A');}
+ await assert.rejects(()=>generateReport(db,{topic:'financeiro',client_id:id}));await assert.rejects(()=>generateReport(db,{topic:'estoque',client_id:id}));await assert.rejects(()=>generateReport(db,{topic:'financeiro',search:'LOCALIZA'}));
+ const invalid=await generateReport(db,{topic:'servicos',from:base.from,to:base.to,client_id:'33333333-3333-4333-8333-333333333333'});assert.equal(invalid.rows.length,0);
+ const ui=await readFile('src/ManagementAssistant.jsx','utf8');assert(!ui.includes("search:topic==='financeiro'?''"));assert(ui.includes('Personalizar informações'));assert(ui.includes('Cliente<select'));
+ console.log('PASS: client scope retained across services/team/client totals; no global report fallback; unknown client returns empty; hidden columns/totals/charts obey selections.');
+}finally{await unlink(temp).catch(()=>{});}
