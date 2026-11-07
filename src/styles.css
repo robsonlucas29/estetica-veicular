@@ -1328,3 +1328,75 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 
 /* Override workspace label margins so paired redemption controls share a baseline. */
 .devBox .redemptionFields>label{margin:0;gap:6px;align-self:end}.devBox .redemptionFields>label>select,.devBox .redemptionFields>label>input,.devBox .redemptionDateTime>input{height:48px;min-height:48px;margin:0}.devBox .redemptionWasherField,.devBox .redemptionDateTime{align-self:end;margin:0}.devBox .redemptionDateTimeLabel,.devBox .redemptionWasherField>span{line-height:normal}
+
+
+/* =========================================================
+   CRM CONSULTIVO + MOBILE FIRST (NOV/2026)
+   Não altera caixa, agendamentos, autenticação ou RLS.
+========================================================= */
+.recoveryPanel{margin:18px 0 22px;padding:18px;border:1px solid #38343a;border-radius:16px;background:linear-gradient(145deg,#181216,#111115)}
+.recoveryHead{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.recoveryHead h3{margin:0 0 5px!important;font-size:17px}
+.recoveryHead p,.recoveryFoot{color:#a1a1aa;font-size:12px;line-height:1.5;margin:4px 0 12px}
+.recoveryTotals{display:flex;gap:9px;flex-wrap:wrap}
+.recoveryTotals span{padding:8px 10px;border:1px solid #3a3034;border-radius:10px;background:#22171b;font-size:12px;color:#ddd}
+.recoveryTotals b{color:#ff6778;font-size:17px;margin-right:4px}
+.recoveryFilters{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.recoveryFilters button{min-height:40px;border:1px solid #49414a;background:#211e23;color:#e5e5e7;padding:8px 12px;border-radius:999px;cursor:pointer}
+.recoveryFilters button.selected{background:#d71920;border-color:#d71920;color:white}
+.recoverySearch{width:100%;min-height:44px;padding:10px 12px;background:#0b0b0e;border:1px solid #48404a;border-radius:10px;color:white;outline-offset:3px}
+.recoveryList{display:grid;gap:8px;margin-top:12px;max-height:370px;overflow-y:auto;overscroll-behavior:contain}
+.recoveryRow{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#0f0f13;border:1px solid #2c292e;border-radius:12px;padding:12px}
+.recoveryRow strong,.recoveryRow small{display:block;overflow-wrap:anywhere}
+.recoveryRow small{color:#aaa;font-size:12px;margin-top:4px}
+.recoveryRowActions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.recoveryStatus{font-size:12px;color:#ddd;border:1px solid #48404a;border-radius:999px;padding:5px 9px;white-space:nowrap}
+.recoveryStatus.inativo{color:#ffc2ca;border-color:#ad3a48}
+.recoveryStatus.em_risco{color:#ffdca6;border-color:#9a6725}
+.recoveryRowActions button{min-height:40px;border:0;border-radius:9px;background:#167347;color:white;font-weight:700;padding:8px 11px;cursor:pointer}
+.mobileNavigation{display:none}
+@media(max-width:860px){
+ .app{display:block!important;min-width:0!important}
+ .app>aside{display:none!important}
+ .app>main{min-width:0!important;overflow-x:hidden!important;padding:14px 12px calc(105px + env(safe-area-inset-bottom,0px))!important}
+ .app>main>header{align-items:flex-start;gap:12px;flex-wrap:wrap}
+ .app>main>header h1{font-size:clamp(19px,5vw,25px);line-height:1.2}
+ .app>main .panel{min-width:0;padding:14px!important}
+ .app>main .panelHead{gap:8px}
+ .app>main .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}
+ .app>main .card{min-width:0;padding:12px!important}
+ .app>main .card strong{font-size:clamp(16px,4vw,22px);overflow-wrap:anywhere}
+ .app>main .formGrid,.app>main .filterGrid,.app>main .detailGrid{min-width:0;grid-template-columns:1fr!important}
+ .app>main input:not([type=checkbox]):not([type=radio]),.app>main select,.app>main textarea{font-size:16px;max-width:100%}
+ .app>main button,.app>main .primary,.app>main .secondary{min-height:44px}
+ .app>main .tableWrap{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .app>main .modalBack{padding:8px 8px calc(12px + env(safe-area-inset-bottom,0px))}
+ .app>main .modal{max-height:calc(100dvh - 24px);width:100%;padding:14px;border-radius:14px}
+ .mobileNavigation{display:block}
+ .mobileNavDock{position:fixed;bottom:0;left:0;right:0;z-index:120;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:7px 7px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(13,13,18,.98);border-top:1px solid #424049;box-shadow:0 -12px 35px #000a}
+ .mobileNavDock button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:53px;padding:5px 2px;background:transparent;border:0;border-radius:11px;color:#aaa;cursor:pointer}
+ .mobileNavDock button span{font-size:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .mobileNavDock button.active{color:white;background:#a9102b}
+ .mobileNavBackdrop{position:fixed;inset:0;z-index:118;background:#000a}
+ .mobileNavSheet{position:fixed;z-index:119;left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:#17171d;border:1px solid #44434b;border-radius:18px;padding:15px;max-height:min(65dvh,560px);overflow-y:auto;box-shadow:0 16px 50px #000c}
+ .mobileNavSheetTitle{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+ .mobileNavSheetTitle span{font-size:12px;color:#aaa}
+ .mobileNavSheetGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .mobileNavSheetGrid button,.mobileNavSheetFooter button{display:flex;align-items:center;gap:9px;min-height:48px;padding:10px;background:#222229;border:1px solid #34343c;border-radius:10px;color:white;text-align:left}
+ .mobileNavSheetGrid button.active{background:#9b1429;border-color:#e02b45}
+ .mobileNavSheetFooter{display:flex;gap:8px;margin-top:12px}
+ .mobileNavSheetFooter button{flex:1;justify-content:center}
+ .recoveryPanel{padding:12px}
+ .recoveryRow{align-items:stretch;flex-direction:column}
+ .recoveryRowActions{justify-content:space-between}
+}
+@media(max-width:430px){
+ .app>main .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .app>main .card span{font-size:11px}
+ .mobileNavSheetGrid{grid-template-columns:1fr 1fr}
+ .recoveryTotals{width:100%}
+ .recoveryTotals span{flex:1;text-align:center}
+}
+@media(prefers-reduced-motion:reduce){
+ .mobileNavigation *{scroll-behavior:auto!important}
+}
