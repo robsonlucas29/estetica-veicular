@@ -1,5 +1,7 @@
 import {completionDateError} from './completion-date.js';
 import AppointmentMultiPicker from './AppointmentMultiPicker.jsx';
+import ClientRecoveryPanel from './ClientRecoveryPanel.jsx';
+import MobileNav from './MobileNav.jsx';
 import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {createPortal} from 'react-dom';
@@ -2574,7 +2576,8 @@ function Sidebar({
  const items=all.filter(([id])=>['administrador','gerente'].includes(role)||!managerOnly.has(id));
  const showingUser=Boolean(photoUrl&&photoOk&&showPhoto);
 
- return <aside>
+ return <>
+ <aside>
   <div className="logo identitySlot">
    <img
     key={showingUser?`user-${photoUrl}`:'grau-car-logo'}
@@ -2607,6 +2610,8 @@ function Sidebar({
    <button onClick={signOut}><LogOut size={18}/>Sair</button>
   </div>
  </aside>
+ <MobileNav items={items} tab={tab} setTab={setTab} signOut={signOut} role={role}/>
+ </>;
 }
 
 
@@ -3314,6 +3319,8 @@ function Clients({
     onChange={setSearch}
     placeholder="Pesquisar cliente por nome, telefone, e-mail ou documento"
    />
+
+   {canAdmin&&<ClientRecoveryPanel clients={clients} vehicles={vehicles} orders={orders}/>}
 
    <Table
     headers={[
