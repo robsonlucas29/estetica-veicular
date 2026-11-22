@@ -1,8 +1,7 @@
 // Modelo transacional de conclusão: HTML compatível com clientes de e-mail
 // e versão texto para acessibilidade. Não altera envio, autorização ou idempotência.
-const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,char=>({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[char]||char));
+const htmlEntities:Record<string,string>={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,char=>htmlEntities[char]||char);
 const money=(value:unknown)=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const BRAND='Garagem Grau Car 096';
 const LOGO='https://www.graucargaragem.com.br/grau-car-logo.jpeg';
