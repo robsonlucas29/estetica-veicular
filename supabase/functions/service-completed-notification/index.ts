@@ -1,4 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.0';
+import {buildCompletionEmail} from './email-template.ts';
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers});
 const env=k=>Deno.env.get(k)||'';
@@ -37,9 +38,8 @@ Deno.serve(async req=>{
  if(claimError)return reply({sent:false,duplicate:claimError.code==='23505',error:claimError.code==='23505'?null:'Não foi possível registrar o envio'},claimError.code==='23505'?200:503);
  try{
   if(!env('RESEND_API_KEY')||!env('RESEND_FROM_EMAIL'))throw Error('Configuração indisponível');
-  const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  const html='<div style="font-family:Arial;max-width:600px;margin:auto"><h2>Garagem Grau Car 096 — Seu veículo está pronto!</h2><p>Olá, '+esc(client.name)+'!</p><p>Concluímos os serviços do veículo '+esc([vehicle.brand,vehicle.model,vehicle.plate].join(' '))+'.</p><ul>'+rows.map(r=>'<li>'+esc(services?.find(s=>s.id===r.service_id)?.name||'Serviço')+' — '+money(r.charged_amount)+'</li>').join('')+'</ul><p><strong>Total: '+money(rows.reduce((n,r)=>n+Number(r.charged_amount||0),0))+'</strong></p><p>Seu veículo já pode ser retirado. Obrigado pela preferência!</p></div>';
-  const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env('RESEND_API_KEY'),'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify({from:env('RESEND_FROM_EMAIL'),to:[client.email],subject:'Seu veículo está pronto! — Garagem Grau Car 096',html}),signal:AbortSignal.timeout(20000)});
+  const {html,text}=buildCompletionEmail(client,vehicle,rows,services||[]);
+  const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env('RESEND_API_KEY'),'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify({from:env('RESEND_FROM_EMAIL'),to:[client.email],subject:'Seu veículo está pronto! — Garagem Grau Car 096',html,text}),signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw Error('Provedor HTTP '+response.status);
   const {error:saveError}=await admin.from('notification_outbox').update({status:'sent',sent_at:new Date().toISOString(),last_error:null}).eq('id',entry.id);
   if(saveError)return reply({sent:true,record_pending:true,whatsapp_sent:false});
