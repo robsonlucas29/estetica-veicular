@@ -236,7 +236,7 @@ function PhotoPicker({file,currentUrl,onChange,label='Foto de identificação'})
 
 function PublicSite(){
  const whatsapp='https://wa.me/5596984361638';
- const facebook='https://www.facebook.com/share/1L1YkAsB4C/?mibextid=wwXIfr';
+ const facebook='https://www.facebook.com/GrauCar/';
  const instagram='https://www.instagram.com/graucar096?stkn=MWg2MzMxeGVqOW44OQ==';
 
  const [menuOpen,setMenuOpen]=useState(false);
