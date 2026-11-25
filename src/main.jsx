@@ -1,3 +1,4 @@
+import HeroCarousel from './HeroCarousel.jsx';
 import {completionDateError} from './completion-date.js';
 import AppointmentMultiPicker from './AppointmentMultiPicker.jsx';
 import ClientRecoveryPanel from './ClientRecoveryPanel.jsx';
@@ -466,12 +467,7 @@ function PublicSite(){
 
     </div>
 
-    <div className="publicHeroLogo">
-     <img
-      src={logoGraucar}
-      alt="Logo Garagem Grau Car"
-     />
-    </div>
+    <HeroCarousel logo={logoGraucar}/>
 
    </section>
 
