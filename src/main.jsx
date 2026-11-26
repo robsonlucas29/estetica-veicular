@@ -1,3 +1,4 @@
+import TvPanel from './TvPanel.jsx';
 import HeroCarousel from './HeroCarousel.jsx';
 import {completionDateError} from './completion-date.js';
 import AppointmentMultiPicker from './AppointmentMultiPicker.jsx';
@@ -11,7 +12,7 @@ import {
  Car,Users,Wrench,ClipboardList,ShieldCheck,LogOut,Plus,Camera,Trash2,Edit3,
  CalendarDays,Wallet,UserRoundCog,FileDown,MessageCircle,Eye,X,CheckCircle2,
  Clock3,CreditCard,Percent,Image as ImageIcon,Save,Search,MapPin,Mail,Phone,IdCard,
- User,Briefcase,DollarSign,Lock,Tag,Palette,Hash,FileText,ImagePlus,BarChart3
+ User,Briefcase,DollarSign,Lock,Tag,Palette,Hash,FileText,ImagePlus,BarChart3,Monitor
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -1431,6 +1432,7 @@ function App(){
   let timer;
 
   const logoutByInactivity=async()=>{
+   if(tab==='painel-tv'&&profile?.role==='visualizador')return;
 
    try{
     await supabase.auth.signOut();
@@ -1484,7 +1486,7 @@ function App(){
 
   };
 
- },[session?.user?.id,configured]);
+ },[session?.user?.id,configured,tab,profile?.role]);
 
 
  /* ---------------------------------------------------------
@@ -2031,6 +2033,8 @@ function App(){
   ['administrador','gerente'].includes(role);
 
 
+ if(tab==='painel-tv')return <TvPanel supabase={supabase} logo={logoGraucar} onExit={()=>setTab('dashboard')} onSignOut={signOut} role={role}/>;
+
  const common={
   clients,
   setClients,
@@ -2504,6 +2508,7 @@ function Sidebar({
 
  const all=[
   ['dashboard',ClipboardList,'Dashboard'],
+  ['painel-tv',Monitor,'Painel TV'],
   ...(modernized?[["producao",ClipboardList,"Produção"]]:[]),
   ['clientes',Users,'Clientes'],
   ['veiculos',Car,'Veículos'],
