@@ -688,12 +688,17 @@ function PublicSite(){
      </h2>
     </div>
 
-    <div className="partnerBox">
-     <p style={{margin:0}}>
-      Espaço reservado para apresentar as empresas parceiras
-      da Garagem Grau Car.
-     </p>
-    </div>
+    <article className="partnerBox" style={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:24}}>
+     <a href="https://megasul-auto-center.vercel.app/institucional/" target="_blank" rel="noopener noreferrer" aria-label="Conheça a MEGASUL Auto Center" style={{display:'block',width:220,maxWidth:'100%',margin:'0 auto',background:'#0b0b0b',borderRadius:14,padding:14,boxSizing:'border-box'}}>
+      <img src="/megasul-partner-logo.png" alt="MEGASUL Auto Center" width="192" height="112" loading="lazy" style={{display:'block',width:'100%',height:112,objectFit:'contain'}}/>
+     </a>
+     <div style={{flex:'1 1 260px',minWidth:0}}>
+      <span style={{fontSize:12,fontWeight:800,letterSpacing:1.2,color:'#ff9a49'}}>EMPRESA PARCEIRA</span>
+      <h3 style={{margin:'8px 0',fontSize:23}}>MEGASUL Auto Center</h3>
+      <p style={{margin:'0 0 16px',lineHeight:1.6}}>Mecânica automotiva, manutenção preventiva e corretiva para cuidar do seu veículo. Uma parceria que une estética automotiva e cuidado mecânico em Macapá.</p>
+      <a className="publicSecondary" href="https://megasul-auto-center.vercel.app/institucional/" target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 16px',border:'1px solid currentColor',borderRadius:12,fontWeight:700}}>Conheça a MEGASUL <span aria-hidden="true">↗</span></a>
+     </div>
+    </article>
 
    </section>
 
