@@ -6,7 +6,7 @@ export default function HeroCarousel({logo}){
  const [index,setIndex]=useState(0),[paused,setPaused]=useState(false),[hover,setHover]=useState(false);
  useEffect(()=>{let active=true;Promise.all(photos.map(([name,alt])=>new Promise(resolve=>{const img=new Image();const src='/carrossel/'+name+'.webp';img.onload=()=>resolve({src,alt});img.onerror=()=>resolve(null);img.src=src;}))).then(items=>{if(active)setAvailable(items.filter(Boolean));});return()=>{active=false}},[]);
  const slides=[{src:logo,alt:'Logo Garagem Grau Car'},...available];
- useEffect(()=>{if(slides.length<2||paused||hover||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;const timer=setTimeout(()=>setIndex(i=>(i+1)%slides.length),5000);return()=>clearTimeout(timer)},[index,paused,hover,slides.length]);
+ useEffect(()=>{if(slides.length<2||paused||hover||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;const timer=setTimeout(()=>setIndex(i=>(i+1)%slides.length),3000);return()=>clearTimeout(timer)},[index,paused,hover,slides.length]);
  const move=d=>setIndex(i=>(i+d+slides.length)%slides.length);
  return <section className="grauHeroCarousel" aria-label="Galeria Garagem Grau Car" onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
  <div className="grauHeroStage">{slides.map((s,i)=><img key={s.src} src={s.src} alt={s.alt} aria-hidden={i!==index} className={i===index?'current':''} decoding="async"/>)}
