@@ -396,8 +396,6 @@ function PublicSite(){
 
       <a
        href="/oportunidades"
-       target="_blank"
-       rel="noreferrer"
       >
        Faça parte do nosso time
       </a>
@@ -8569,7 +8567,7 @@ function Audit({logs}){
 
 if(modernized&&'serviceWorker' in navigator){
  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
- const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='/manifest.webmanifest';document.head.appendChild(manifest);
+ const manifest=document.createElement('link');manifest.rel='manifest';manifest.href=isDevelopment?'/manifest-dev.webmanifest':'/manifest.webmanifest';document.head.appendChild(manifest);
 }
 
 createRoot(
