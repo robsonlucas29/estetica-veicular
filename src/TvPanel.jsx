@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {Monitor,Maximize,Minimize,ArrowLeft,LogOut,Car,Clock3,CalendarDays,CheckCircle2,Wrench} from 'lucide-react';
 import './tv-panel.css';
-const zone='America/Macapa';
+const zone='America/Belem';
 const day=d=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d).filter(x=>x.type!=='literal').reduce((a,x)=>({...a,[x.type]:x.value}),{});
 const key=d=>{const p=day(d);return p.year+'-'+p.month+'-'+p.day};
 const time=d=>new Date(d).toLocaleTimeString('pt-BR',{timeZone:zone,hour:'2-digit',minute:'2-digit'});
