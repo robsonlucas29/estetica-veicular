@@ -1,6 +1,6 @@
 import React,{useState,useEffect} from 'react';
 import './hero-carousel.css';
-const photos=[['localizacao','Localização da Garagem Grau Car'],['missao','Missão ativada: devolva o brilho ao seu carro'],['volkswagen','Volkswagen na garagem'],['bmw','BMW na garagem'],['ford','Ford na garagem']];
+const photos=[['localizacao','Localização da Garagem Grau Car'],['missao','Missão ativada: devolva o brilho ao seu carro'],['volkswagen','Volkswagen na garagem'],['bmw','BMW na garagem'],['ford','Ford na garagem'],['polimento','Serviços de polimento'],['lavagem-motos','Lavagem de motos'],['lavagens-automotivas','Serviços de lavagem automotiva'],['horarios','Horários de funcionamento'],['higienizacao','Higienização e tratamentos'],['cuidado-detalhes','Cuidado em cada detalhe'],['realce-brilho','Realce o brilho do seu carro'],['tratamento-motor','Tratamento do motor']];
 export default function HeroCarousel({logo}){
  const [available,setAvailable]=useState([]);
  const [index,setIndex]=useState(0),[paused,setPaused]=useState(false),[hover,setHover]=useState(false);
