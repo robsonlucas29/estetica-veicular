@@ -1446,3 +1446,23 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .grauLoginCard .grauLoginNotice{justify-content:center;font-size:clamp(12px,1.2vw,16px);margin:4px 0 0}
 @media(max-height:720px) and (min-width:701px){.login form.grauLoginCard{padding-top:18px;padding-bottom:18px;gap:10px}.grauLoginLogo{height:90px}.grauLoginCard .loginIntro{font-size:16px}.login .grauLoginCard h2{font-size:30px}}
 @media(max-width:700px){.login form.grauLoginCard{margin-left:0;border-radius:26px;padding:24px;gap:12px}.login.grauLogin{background-position:35% center}.grauLoginLogo{height:100px}}
+
+/* Proporções da referência: painel vertical, marca sem fundo e brilho localizado */
+.login.grauLogin{min-height:100vh;min-height:100dvh;padding:clamp(12px,3vh,32px);background-position:center center}
+.login form.grauLoginCard{width:min(705px,69vh,calc(100vw - 32px));width:min(705px,69dvh,calc(100vw - 32px));margin-left:0;box-sizing:border-box;padding:clamp(22px,4.3vh,44px) clamp(24px,7.4vh,76px);gap:clamp(10px,1.9vh,20px);border-radius:clamp(25px,5vh,56px);border:1.5px solid #ff5262;background:radial-gradient(ellipse at 100% 12%,#85000970,transparent 45%),radial-gradient(ellipse at 0% 100%,#a9001555,transparent 40%),linear-gradient(145deg,#222027f5,#080609fa 50%,#201e24f5);box-shadow:0 0 28px #ff001d55,inset 0 0 20px #ff102522,0 22px 55px #000a}
+.login form.grauLoginCard::before{left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent 10%,#ff122c 30%,#fff 50%,#ff122c 70%,transparent 90%);box-shadow:0 0 16px 3px #ff001c}
+.login form.grauLoginCard::after{left:8%;width:84%;height:2px;background:linear-gradient(90deg,transparent,#ff122c 25%,#fff 48%,#ff122c 70%,transparent);box-shadow:0 0 15px 3px #ff001c}
+.grauLoginLogo{height:auto;min-height:0;overflow:visible;padding:0 0 clamp(10px,2vh,20px);margin:0 0 clamp(4px,1.4vh,14px);display:flex;justify-content:center;align-items:center}
+.grauLoginLogo img{display:block;width:76%;max-width:420px;height:auto;max-height:none;object-fit:contain;transform:none;mix-blend-mode:normal;filter:url(#grauLoginLogoAlpha)}
+.grauLoginLogo::after{width:56%;height:clamp(3px,.65vh,7px);border-radius:10px;background:linear-gradient(90deg,transparent,#ff0000 28%,#fff 49%,#ff0000 65%,#ff0000);box-shadow:0 0 12px #ff001d}
+.login .grauLoginCard h2{font-size:clamp(24px,5vh,50px);line-height:1.12;letter-spacing:-.035em}
+.grauLoginCard h2::after{width:16%;height:clamp(3px,.6vh,6px);margin-top:clamp(7px,1.1vh,12px)}
+.grauLoginCard .loginIntro{font-size:clamp(14px,2.55vh,26px);line-height:1.35;margin:0}
+.grauLoginField{min-height:clamp(42px,6.4vh,66px);border-radius:clamp(12px,2vh,22px);padding:0 clamp(12px,2.6vh,27px);gap:clamp(10px,3vh,30px);background:linear-gradient(120deg,#201e23,#141217)}
+.login .grauLoginField input,.login .grauLoginField input:focus{font-size:clamp(14px,2.1vh,22px);padding:9px 0}
+.login .grauLoginSubmit,.login .grauLoginBack{min-height:clamp(44px,6.7vh,69px);font-size:clamp(17px,3vh,31px);border-radius:clamp(12px,2vh,22px);gap:clamp(10px,2vh,20px)}
+.login .grauLoginSubmit{background:linear-gradient(165deg,#ff2222,#ff0000 45%,#c90000);box-shadow:0 0 16px #ff000055;border-color:#ffb2b2}
+.login .grauLoginBack{border-color:#eee;background:#09080bbb}
+.grauLoginCard .grauLoginNotice{font-size:clamp(12px,1.95vh,20px);line-height:1.4;margin:clamp(3px,1vh,10px) 0 0;gap:clamp(12px,2vh,22px);padding:0 5%}
+.grauLoginNotice svg{width:clamp(24px,4.3vh,44px);height:auto;color:#ff152b}
+@media(max-width:600px){.login.grauLogin{padding:16px;background-position:center}.login form.grauLoginCard{width:min(100%,430px);padding:26px 24px;gap:13px;border-radius:28px}.grauLoginLogo img{width:82%}.login .grauLoginCard h2{font-size:28px}.grauLoginCard .loginIntro{font-size:15px}.login .grauLoginField input{font-size:16px}.grauLoginCard .grauLoginNotice{padding:0}}

@@ -2453,7 +2453,7 @@ function Login({login,setLogin,signIn,error}){
  const [showPassword,setShowPassword]=useState(false);
  return <div className="login grauLogin">
   <form onSubmit={signIn} className="grauLoginCard">
-   <div className="grauLoginLogo"><img src="/login-logo-premium.webp" onError={e=>{if(!e.currentTarget.dataset.fallback){e.currentTarget.dataset.fallback="1";e.currentTarget.src=logoGraucar}}} alt="Garagem Grau Car 096"/></div>
+   <div className="grauLoginLogo"><svg aria-hidden="true" width="0" height="0" style={{position:"absolute"}}><defs><filter id="grauLoginLogoAlpha" colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  4 1.5 1.5 0 -1.25"/></filter></defs></svg><img src="/login-logo-premium.webp" onError={e=>{if(!e.currentTarget.dataset.fallback){e.currentTarget.dataset.fallback="1";e.currentTarget.src=logoGraucar}}} alt="Garagem Grau Car 096"/></div>
    <h2>{isDevelopment?'Acesso ao ambiente de testes':'Acesso ao sistema'}</h2>
    <p className="loginIntro">{isDevelopment?'Use uma conta criada no banco de desenvolvimento. As contas da produção não são reutilizadas.':'Entre com seu usuário autorizado.'}</p>
    <label className="grauLoginField">
