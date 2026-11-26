@@ -9,3 +9,17 @@
 
 /* Mantém a faixa compacta mesmo com 14 imagens, sem extrapolar a moldura. */
 .grauHeroControls{gap:2px}.grauHeroControls button{flex:0 1 32px;min-width:0;padding:0}.grauHeroControls button:not(.grauPause)::after{max-width:75%}.grauHeroControls .grauPause{flex:0 0 28px}
+
+/* Recorte visual das faixas decorativas das artes verticais (9:16).
+   Mantém os arquivos originais, sem cortar as laterais nem alterar a logo. */
+.grauHeroStage img[src="/carrossel/polimento.webp"],
+.grauHeroStage img[src="/carrossel/lavagem-motos.webp"],
+.grauHeroStage img[src="/carrossel/lavagens-automotivas.webp"],
+.grauHeroStage img[src="/carrossel/higienizacao.webp"]{
+  inset:auto;left:50%;top:-10.303%;width:85.227%;height:121.212%;
+  transform:translateX(-50%);object-fit:contain;max-width:none;max-height:none;
+}
+.grauHeroStage img[src="/carrossel/horarios.webp"]{
+  inset:auto;left:50%;top:-15.924%;width:89.570%;height:127.389%;
+  transform:translateX(-50%);object-fit:contain;max-width:none;max-height:none;
+}
