@@ -690,7 +690,12 @@ function PublicSite(){
 
     <article className="partnerBox" style={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:24}}>
      <a href="https://megasul-auto-center.vercel.app/institucional/" target="_blank" rel="noopener noreferrer" aria-label="Conheça a MEGASUL Auto Center" style={{display:'block',width:220,maxWidth:'100%',margin:'0 auto',background:'#0b0b0b',borderRadius:14,padding:14,boxSizing:'border-box'}}>
-      <img src="/megasul-partner-logo.png" alt="MEGASUL Auto Center" width="192" height="112" loading="lazy" style={{display:'block',width:'100%',height:112,objectFit:'contain'}}/>
+      <svg width="0" height="0" aria-hidden="true" focusable="false" style={{position:'absolute',pointerEvents:'none'}}>
+       <defs><filter id="megasul-partner-orange" colorInterpolationFilters="sRGB">
+        <feColorMatrix type="matrix" values="1 0 0 0 0  .48 .52 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+       </filter></defs>
+      </svg>
+      <img src="/megasul-partner-logo.png" alt="MEGASUL Auto Center" width="192" height="112" loading="lazy" style={{display:'block',width:'100%',height:112,objectFit:'contain',filter:'url(#megasul-partner-orange)',mixBlendMode:'screen'}}/>
      </a>
      <div style={{flex:'1 1 260px',minWidth:0}}>
       <span style={{fontSize:12,fontWeight:800,letterSpacing:1.2,color:'#ff9a49'}}>EMPRESA PARCEIRA</span>
