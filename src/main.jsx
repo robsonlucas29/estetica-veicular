@@ -2449,87 +2449,27 @@ function AccessError({
 }
 
 
-function Login({
- login,
- setLogin,
- signIn,
- error
-}){
- return <div className="login">
-
-  <form onSubmit={signIn}>
-
-   <div className="brand">
-    <Car size={34}/>
-    <span>Garagem GRAU CAR 096</span>
-   </div>
-
+function Login({login,setLogin,signIn,error}){
+ const [showPassword,setShowPassword]=useState(false);
+ return <div className="login grauLogin">
+  <form onSubmit={signIn} className="grauLoginCard">
+   <div className="grauLoginLogo"><img src={logoGraucar} alt="Garagem Grau Car 096"/></div>
    <h2>{isDevelopment?'Acesso ao ambiente de testes':'Acesso ao sistema'}</h2>
-
-   <p className="loginIntro">
-    {isDevelopment?'Use uma conta criada no banco de desenvolvimento. As contas da produção não são reutilizadas.':'Entre com seu usuário autorizado.'}
-   </p>
-
-   <input
-    type="email"
-    autoComplete="username"
-    required
-    placeholder="✉ Usuário"
-    value={login.email}
-    onChange={e=>
-     setLogin({
-      ...login,
-      email:e.target.value
-     })
-    }
-   />
-
-   <input
-    type="password"
-    autoComplete="current-password"
-    required
-    placeholder="🔒 Senha"
-    value={login.password}
-    onChange={e=>
-     setLogin({
-      ...login,
-      password:e.target.value
-     })
-    }
-   />
-
-   {error&&
-    <div className="error">
-     {error}
-    </div>
-   }
-
-   <button type="submit">
-    Entrar
-   </button>
-
-   <button
-    type="button"
-    className="secondary"
-    style={{
-     width:'100%',
-     justifyContent:'center',
-     textAlign:'center'
-    }}
-    onClick={()=>{
-     window.location.href='/';
-    }}
-   >
-    Voltar ao site
-   </button>
-
-   <small>
-    O acesso é obrigatório. Usuários e permissões são
-    controlados pelo sistema.
-   </small>
-
+   <p className="loginIntro">{isDevelopment?'Use uma conta criada no banco de desenvolvimento. As contas da produção não são reutilizadas.':'Entre com seu usuário autorizado.'}</p>
+   <label className="grauLoginField">
+    <Mail size={20} aria-hidden="true"/>
+    <input type="email" autoComplete="username" aria-label="E-mail" required placeholder="Seu e-mail" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/>
+   </label>
+   <label className="grauLoginField">
+    <Lock size={20} aria-hidden="true"/>
+    <input type={showPassword?'text':'password'} autoComplete="current-password" aria-label="Senha" required placeholder="Sua senha" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/>
+    <button type="button" className="grauLoginEye" aria-label={showPassword?'Ocultar senha':'Mostrar senha'} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}><Eye size={20}/></button>
+   </label>
+   {error&&<div className="error" role="alert">{error}</div>}
+   <button type="submit" className="grauLoginSubmit">Entrar <span aria-hidden="true">→</span></button>
+   <button type="button" className="grauLoginBack" onClick={()=>{window.location.href='/';}}>Voltar ao site</button>
+   <small className="grauLoginNotice"><ShieldCheck size={24} aria-hidden="true"/><span>O acesso é obrigatório. Usuários e permissões são controlados pelo sistema.</span></small>
   </form>
-
  </div>
 }
 

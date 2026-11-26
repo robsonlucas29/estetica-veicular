@@ -1400,3 +1400,27 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 @media(prefers-reduced-motion:reduce){
  .mobileNavigation *{scroll-behavior:auto!important}
 }
+
+/* Tela de acesso Grau Car: identidade visual isolada do painel */
+.login.grauLogin{min-height:100vh;min-height:100dvh;padding:24px 16px;box-sizing:border-box;background:linear-gradient(90deg,rgba(5,5,8,.45),#09090dea 46%,#09090de8 66%,rgba(5,5,8,.62)),radial-gradient(ellipse at 20% 30%,#710c18,transparent 60%),url('/carrossel/bmw.webp') left center/cover no-repeat,#08080b;position:relative;isolation:isolate}
+.login.grauLogin::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 85% 85%,#a600182c,transparent 50%),linear-gradient(135deg,#ff183c30 0%,transparent 18%,transparent 84%,#ff183c35 100%)}
+.login form.grauLoginCard{box-sizing:border-box;width:min(500px,100%);padding:clamp(24px,4vw,44px);gap:14px;color:#f8f8fa;border:1px solid #ed344a88;border-radius:28px;background:linear-gradient(145deg,#191922f5,#0b0b10f5 62%,#220b12f0);box-shadow:0 0 42px #e5183030,0 28px 90px #000b,inset 0 1px 0 #ff627b66}
+.login form.grauLoginCard::before{height:3px;background:linear-gradient(90deg,transparent,#ff203d,#ff9aab,#ff203d,transparent)}
+.grauLoginLogo{display:flex;justify-content:center;align-items:center;height:130px;overflow:hidden;margin-bottom:6px}
+.grauLoginLogo img{width: min(280px,100%);height:100%;object-fit:contain;mix-blend-mode:screen;transform:scale(1.18)}
+.grauLoginCard h2{margin:0;font-size:clamp(25px,4vw,34px);line-height:1.15}
+.grauLoginCard h2::after{content:"";display:block;width:48px;height:3px;background:#ff304b;border-radius:4px;margin-top:12px}
+.grauLoginCard .loginIntro{margin:0 0 6px;color:#b9b9c5;line-height:1.5}
+.grauLoginField{display:flex;align-items:center;gap:10px;border:1px solid #555560;border-radius:13px;padding:0 13px;background:#17171f;color:#c8c8d2;min-width:0}
+.grauLoginField:focus-within{border-color:#ff4058;box-shadow:0 0 0 3px #ff405824}
+.login .grauLoginField input{flex:1;width:0;min-width:0;border:0;background:transparent;box-shadow:none;outline:none;color:#fff;padding:14px 0;font-size:16px}
+.login .grauLoginField input:focus{box-shadow:none}
+.grauLoginField input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #17171f inset;-webkit-text-fill-color:#fff;caret-color:#fff}
+.login .grauLoginEye{background:transparent;border:0;padding:8px;color:#c8c8d2;display:grid;place-items:center;cursor:pointer}
+.login .grauLoginSubmit,.login .grauLoginBack{min-height:50px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:16px;border-radius:13px;cursor:pointer}
+.login .grauLoginSubmit{background:linear-gradient(115deg,#ff2846,#c90920);box-shadow:0 8px 24px #e3193544;border:1px solid #ff6170}
+.login .grauLoginBack{background:transparent;border:1px solid #777783;color:#f5f5f8}
+.grauLoginCard button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.grauLoginCard .grauLoginNotice{display:flex;gap:12px;align-items:center;color:#b2b2bd;margin-top:8px;line-height:1.5}
+.grauLoginNotice svg{color:#ff4058;flex-shrink:0}
+@media(max-width:600px){.login.grauLogin{background:linear-gradient(#08080bb8,#08080bf5),url('/carrossel/bmw.webp') center/cover no-repeat,#08080b}.grauLoginLogo{height:108px}.login form.grauLoginCard{border-radius:22px}}
