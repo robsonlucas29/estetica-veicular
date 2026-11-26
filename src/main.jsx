@@ -2453,11 +2453,11 @@ function Login({login,setLogin,signIn,error}){
  const [showPassword,setShowPassword]=useState(false);
  return <div className="login grauLogin">
   <form onSubmit={signIn} className="grauLoginCard">
-   <div className="grauLoginLogo"><img src={logoGraucar} alt="Garagem Grau Car 096"/></div>
+   <div className="grauLoginLogo"><img src="/login-logo-premium.webp" onError={e=>{if(!e.currentTarget.dataset.fallback){e.currentTarget.dataset.fallback="1";e.currentTarget.src=logoGraucar}}} alt="Garagem Grau Car 096"/></div>
    <h2>{isDevelopment?'Acesso ao ambiente de testes':'Acesso ao sistema'}</h2>
    <p className="loginIntro">{isDevelopment?'Use uma conta criada no banco de desenvolvimento. As contas da produção não são reutilizadas.':'Entre com seu usuário autorizado.'}</p>
    <label className="grauLoginField">
-    <Mail size={20} aria-hidden="true"/>
+    <User size={22} aria-hidden="true"/>
     <input type="email" autoComplete="username" aria-label="E-mail" required placeholder="Seu e-mail" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/>
    </label>
    <label className="grauLoginField">
@@ -2466,8 +2466,8 @@ function Login({login,setLogin,signIn,error}){
     <button type="button" className="grauLoginEye" aria-label={showPassword?'Ocultar senha':'Mostrar senha'} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}><Eye size={20}/></button>
    </label>
    {error&&<div className="error" role="alert">{error}</div>}
-   <button type="submit" className="grauLoginSubmit">Entrar <span aria-hidden="true">→</span></button>
-   <button type="button" className="grauLoginBack" onClick={()=>{window.location.href='/';}}>Voltar ao site</button>
+   <button type="submit" className="grauLoginSubmit"><LogOut size={22} style={{transform:"rotate(180deg)"}} aria-hidden="true"/> Entrar</button>
+   <button type="button" className="grauLoginBack" onClick={()=>{window.location.href='/';}}><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-7H9v7H3z"/></svg> Voltar ao site</button>
    <small className="grauLoginNotice"><ShieldCheck size={24} aria-hidden="true"/><span>O acesso é obrigatório. Usuários e permissões são controlados pelo sistema.</span></small>
   </form>
  </div>

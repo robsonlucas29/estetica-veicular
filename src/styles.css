@@ -1424,3 +1424,25 @@ tbody tr:hover{background:rgba(255,255,255,.035)}
 .grauLoginCard .grauLoginNotice{display:flex;gap:12px;align-items:center;color:#b2b2bd;margin-top:8px;line-height:1.5}
 .grauLoginNotice svg{color:#ff4058;flex-shrink:0}
 @media(max-width:600px){.login.grauLogin{background:linear-gradient(#08080bb8,#08080bf5),url('/carrossel/bmw.webp') center/cover no-repeat,#08080b}.grauLoginLogo{height:108px}.login form.grauLoginCard{border-radius:22px}}
+
+/* Login premium conforme referência aprovada */
+.login.grauLogin{display:grid;place-items:center;min-height:100dvh;padding:16px;box-sizing:border-box;background:#08080b url('/login-garagem-premium.webp') center/cover no-repeat}
+.login.grauLogin::after{background:none}
+.login form.grauLoginCard{position:relative;overflow:hidden;width:min(660px,100%);margin-left:min(8vw,100px);padding:clamp(22px,4vh,44px) clamp(24px,5vw,76px);gap:clamp(10px,1.7vh,18px);border-radius:38px;border:1.5px solid #ff5361;background:radial-gradient(ellipse at 100% 0%,#a5001940,transparent 44%),radial-gradient(ellipse at 0% 100%,#b0002045,transparent 42%),linear-gradient(145deg,#1b1b25f5,#08080cf5 60%,#20202af5);box-shadow:0 0 24px #ff002f50,inset 0 0 25px #ff16351a,0 20px 65px #000a}
+.login form.grauLoginCard::before{height:3px;background:linear-gradient(90deg,transparent,#ff102c 25%,#fff 50%,#ff102c 75%,transparent);box-shadow:0 0 16px 3px #ff002c}
+.login form.grauLoginCard::after{content:"";position:absolute;bottom:0;left:5%;width:70%;height:3px;background:linear-gradient(90deg,#ff223e,#fff,#ff203b,transparent);box-shadow:0 0 18px 4px #ff002b;pointer-events:none}
+.grauLoginLogo{height:clamp(90px,17vh,150px);margin:0 0 4px;position:relative;padding-bottom:10px}
+.grauLoginLogo img{width:min(100%,400px);height:100%;object-fit:contain;transform:none;mix-blend-mode:screen}
+.grauLoginLogo::after{content:"";position:absolute;bottom:0;width:60%;height:3px;background:linear-gradient(90deg,transparent,#ff001c,#ff5064,transparent);box-shadow:0 0 10px #ff002a}
+.login .grauLoginCard h2{font-size:clamp(25px,3vw,40px);line-height:1.15;margin:0}
+.grauLoginCard h2::after{width:74px;height:4px;margin-top:9px}
+.grauLoginCard .loginIntro{font-size:clamp(15px,1.5vw,20px);margin:0 0 4px}
+.grauLoginField{min-height:46px;border:1px solid #797983;border-radius:15px;background:#19191f;padding:0 15px}
+.login .grauLoginField input,.login .grauLoginField input:focus{border:0!important;border-radius:0!important;outline:none!important;box-shadow:none!important;background:transparent!important;font-size:17px;min-height:0;padding:12px 0}
+.login .grauLoginField input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #19191f inset!important;-webkit-text-fill-color:#fff!important}
+.login .grauLoginSubmit,.login .grauLoginBack{min-height:clamp(46px,7vh,62px);font-size:clamp(16px,1.8vw,23px);border-radius:16px}
+.login .grauLoginSubmit{background:linear-gradient(145deg,#ff1515,#d00000);border:1px solid #ff7a7a;box-shadow:0 0 22px #ff000044}
+.login .grauLoginBack{border:1px solid #c0c0c7;background:#09090c99}
+.grauLoginCard .grauLoginNotice{justify-content:center;font-size:clamp(12px,1.2vw,16px);margin:4px 0 0}
+@media(max-height:720px) and (min-width:701px){.login form.grauLoginCard{padding-top:18px;padding-bottom:18px;gap:10px}.grauLoginLogo{height:90px}.grauLoginCard .loginIntro{font-size:16px}.login .grauLoginCard h2{font-size:30px}}
+@media(max-width:700px){.login form.grauLoginCard{margin-left:0;border-radius:26px;padding:24px;gap:12px}.login.grauLogin{background-position:35% center}.grauLoginLogo{height:100px}}
