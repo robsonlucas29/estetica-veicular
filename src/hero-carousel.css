@@ -6,3 +6,6 @@
 .grauPrev{left:8px}.grauNext{right:8px}.grauHeroControls{display:flex;justify-content:center;align-items:center;gap:4px;padding:2px 8px}.grauHeroControls button{width:32px;height:28px;background:transparent;border:0;cursor:pointer;color:white}.grauHeroControls button:not(.grauPause)::after{content:'';display:block;width:9px;height:9px;margin:auto;background:#aaa;border-radius:10px}.grauHeroControls button.current::after{width:20px;background:#ff304b}.grauHeroControls .grauPause{font-size:18px}.grauHeroCarousel button:focus-visible{outline:2px solid white;outline-offset:-3px}@media(max-width:760px){.grauHeroCarousel{max-width:380px;margin:auto}}@media(prefers-reduced-motion:reduce){.grauHeroStage img{transition:none}}
 /* A primeira imagem é a marca: preservar a resolução nativa e uniformizar o fundo. */
 .grauHeroStage img:first-of-type{box-sizing:border-box;background:#000;object-fit:scale-down;padding:clamp(44px,14%,68px);object-position:center;image-rendering:auto}
+
+/* Mantém a faixa compacta mesmo com 14 imagens, sem extrapolar a moldura. */
+.grauHeroControls{gap:2px}.grauHeroControls button{flex:0 1 32px;min-width:0;padding:0}.grauHeroControls button:not(.grauPause)::after{max-width:75%}.grauHeroControls .grauPause{flex:0 0 28px}
